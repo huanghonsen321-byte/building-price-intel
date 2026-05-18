@@ -1,0 +1,105 @@
+{
+  "version": "v4-safe-national",
+  "description": "合规限速版全国脚手架/建材公开数据源配置。只采集公开页面，不绕过登录/验证码/付费墙，不使用代理池规避限制。",
+  "limits": {
+    "concurrency": 2,
+    "request_delay_seconds": 2.0,
+    "retry_attempts": 3,
+    "retry_backoff_seconds": 2.0,
+    "max_keywords_per_run": 8,
+    "max_sources_per_run": 4,
+    "robots_policy": "respect_public_access_and_site_terms"
+  },
+  "price_sources": [
+    {
+      "name": "生意社公开价格页",
+      "url": "https://www.100ppi.com/price/",
+      "type": "httpx_html",
+      "priority": 1,
+      "enabled": true,
+      "categories": ["steel", "scrap", "scaffold"],
+      "notes": "现有 BusinessSocietyPriceCrawler 支持的公开价格页"
+    },
+    {
+      "name": "钢材之家公开行情",
+      "url": "https://www.gangc.com",
+      "type": "planned_public_adapter",
+      "priority": 2,
+      "enabled": false,
+      "categories": ["steel"],
+      "notes": "待确认公开页面结构后接入；禁止登录绕过和付费数据抓取"
+    },
+    {
+      "name": "再生资源网公开行情",
+      "url": "https://www.51scrap.com",
+      "type": "planned_public_adapter",
+      "priority": 3,
+      "enabled": false,
+      "categories": ["scrap"],
+      "notes": "待确认公开页面结构后接入；禁止登录绕过和付费数据抓取"
+    }
+  ],
+  "bid_sources": [
+    {
+      "name": "中国政府采购网",
+      "url": "http://search.ccgp.gov.cn/bxsearch",
+      "type": "httpx_html",
+      "priority": 1,
+      "enabled": true,
+      "regions": ["全国"],
+      "notes": "现有 ChinaGovernmentProcurementCrawler 支持的公开搜索页"
+    },
+    {
+      "name": "广东省公共资源交易平台",
+      "url": "https://ygp.gdzwfw.gov.cn/ggzy-portal/#/44/index",
+      "type": "planned_public_adapter",
+      "priority": 2,
+      "enabled": false,
+      "regions": ["广东", "广州", "深圳", "佛山", "东莞", "中山", "惠州", "珠海", "江门", "肇庆", "清远", "韶关", "汕头", "湛江", "茂名", "阳江", "梅州", "河源", "汕尾", "潮州", "揭阳", "云浮"],
+      "notes": "需要按公开检索接口/页面单独适配，禁止验证码/登录绕过"
+    },
+    {
+      "name": "全国公共资源交易平台",
+      "url": "http://www.ggzy.gov.cn/",
+      "type": "planned_public_adapter",
+      "priority": 3,
+      "enabled": false,
+      "regions": ["全国"],
+      "notes": "待确认公开搜索接口后接入，先作为配置候选"
+    },
+    {
+      "name": "央企采购公开公告",
+      "url": "https://www.cecgp.com",
+      "type": "planned_public_adapter",
+      "priority": 4,
+      "enabled": false,
+      "regions": ["全国"],
+      "notes": "待确认公开页面结构后接入"
+    }
+  ],
+  "keywords": [
+    "脚手架",
+    "盘扣",
+    "盘扣式脚手架",
+    "扣件式脚手架",
+    "钢管脚手架",
+    "模板脚手架",
+    "脚手架搭拆",
+    "周转材料租赁",
+    "钢管扣件租赁",
+    "附着式升降脚手架",
+    "爬架",
+    "脚手架专业分包",
+    "模板工程",
+    "脚手架工程",
+    "盘扣架租赁",
+    "钢管租赁",
+    "扣件租赁",
+    "安全网",
+    "顶托",
+    "钢跳板",
+    "铝模",
+    "木方",
+    "模板支撑"
+  ]
+}
