@@ -568,4 +568,29 @@ def build_crawl_dashboard_summary(db: Session) -> dict:
         "today_successful_source_count": len(today_successful_source_ids),
         "guangdong_success_rate": _success_rate(True),
         "national_success_rate": _success_rate(False),
+        "source_library_stats": _source_library_stats(),
     }
+
+
+def _source_library_stats() -> dict:
+    """Include source library registry stats in the dashboard."""
+    try:
+        from app.source_library.registry import get_stats
+        stats = get_stats()
+        return {
+            "total_sources": stats.total_sources,
+            "enabled_sources": stats.enabled_sources,
+            "parser_ready_sources": stats.parser_ready_sources,
+            "blocked_sources": stats.blocked_sources,
+            "national_sources": stats.national_sources,
+            "guangdong_sources": stats.guangdong_sources,
+            "province_source_count": stats.province_source_count,
+            "city_source_count": stats.city_source_count,
+            "price_source_count": stats.price_source_count,
+            "attachment_source_count": stats.attachment_source_count,
+            "manual_import_sources": stats.manual_import_sources,
+            "authorized_api_sources": stats.authorized_api_sources,
+            "by_parser_status": stats.by_parser_status,
+        }
+    except Exception:
+        return {}
