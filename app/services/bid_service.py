@@ -10,6 +10,9 @@ from app.models.review import ReviewTask
 from app.services.price_reference_service import replace_reference_for_case
 
 
+AUTO_REVIEW_STATUSES = {"pending", "auto_extracted"}
+
+
 def _parse_date(value: Any) -> date | None:
     if isinstance(value, date):
         return value
@@ -126,6 +129,8 @@ def ensure_review_task_for_case(
     ReviewTask is a supplemental operations queue used for dashboard stats,
     alerts, and manual review assignment, so it must not duplicate rows.
     """
+    if case.review_status not in AUTO_REVIEW_STATUSES:
+        return None
     confidence = Decimal(str(case.extraction_confidence or 0))
     needs_review = (
         case.review_status == "pending"
@@ -150,6 +155,7 @@ def create_or_update_case_from_extraction(
     raw_document_id: int | None = None,
 ) -> ScaffoldBidCase:
     case = db.scalar(select(ScaffoldBidCase).where(ScaffoldBidCase.source_url == source_url))
+    is_new_case = case is None
     if case is None:
         case = ScaffoldBidCase(project_name=extraction.get("project_name") or "未命名脚手架公告", source_url=source_url)
         db.add(case)
@@ -178,7 +184,9 @@ def create_or_update_case_from_extraction(
     case.missing_fields = extraction.get("missing_fields") or []
     case.raw_evidence_snippets = extraction.get("raw_evidence_snippets") or []
     case.extraction_confidence = _decimal_or_none(extraction.get("extraction_confidence", extraction.get("confidence"))) or Decimal("0.0")
-    case.review_status = "pending" if case.extraction_confidence < Decimal("0.70") else "auto_extracted"
+    extracted_status = "pending" if case.extraction_confidence < Decimal("0.70") else "auto_extracted"
+    if is_new_case or case.review_status in AUTO_REVIEW_STATUSES:
+        case.review_status = extracted_status
     db.flush()
     replace_reference_for_case(db, case)
     db.flush()
@@ -190,8 +198,12 @@ def review_case(db: Session, case_id: int, status: str, reviewer_note: str | Non
     if case is None:
         return None
     case.review_status = status
-    task = ReviewTask(case_id=case_id, status=status, reviewer_note=reviewer_note)
-    db.add(task)
+    task = db.scalar(select(ReviewTask).where(ReviewTask.case_id == case_id, ReviewTask.status == "pending"))
+    if task is None:
+        task = ReviewTask(case_id=case_id)
+        db.add(task)
+    task.status = status
+    task.reviewer_note = reviewer_note
     db.commit()
     db.refresh(task)
     return task

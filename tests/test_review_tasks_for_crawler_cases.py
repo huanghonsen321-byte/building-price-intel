@@ -5,6 +5,7 @@ from sqlalchemy import func, select
 from app.core.database import SessionLocal
 from app.models.bid import ScaffoldBidCase
 from app.models.review import ReviewTask
+from app.services.bid_service import review_case
 from app.services.crawl_service import run_public_crawl
 from scripts import daily_ops_pipeline
 
@@ -92,3 +93,36 @@ def test_daily_ops_pipeline_report_includes_observability_fields(monkeypatch) ->
     ]:
         assert field in report
     assert report["vllm_available"] is False
+
+
+def test_review_case_updates_existing_pending_task() -> None:
+    with SessionLocal() as db:
+        run_public_crawl(db, keyword="review-task-update", price_html=PRICE_HTML_EMPTY, bid_html=_bid_html("update"))
+        case = db.scalar(select(ScaffoldBidCase).where(ScaffoldBidCase.source_url.like("%review-task-update%")))
+        assert case is not None
+
+        task = review_case(db, case.id, "approved", "人工复核通过")
+        assert task is not None
+        assert task.status == "approved"
+
+        pending_count = db.scalar(select(func.count()).select_from(ReviewTask).where(ReviewTask.case_id == case.id, ReviewTask.status == "pending"))
+        total_count = db.scalar(select(func.count()).select_from(ReviewTask).where(ReviewTask.case_id == case.id))
+        assert pending_count == 0
+        assert total_count == 1
+
+
+def test_manual_review_status_survives_repeated_crawler_run() -> None:
+    with SessionLocal() as db:
+        run_public_crawl(db, keyword="review-task-preserve", price_html=PRICE_HTML_EMPTY, bid_html=_bid_html("preserve"))
+        case = db.scalar(select(ScaffoldBidCase).where(ScaffoldBidCase.source_url.like("%review-task-preserve%")))
+        assert case is not None
+
+        review_case(db, case.id, "approved", "人工复核通过")
+        run_public_crawl(db, keyword="review-task-preserve", price_html=PRICE_HTML_EMPTY, bid_html=_bid_html("preserve"))
+        db.refresh(case)
+
+        pending_count = db.scalar(select(func.count()).select_from(ReviewTask).where(ReviewTask.case_id == case.id, ReviewTask.status == "pending"))
+        total_count = db.scalar(select(func.count()).select_from(ReviewTask).where(ReviewTask.case_id == case.id))
+        assert case.review_status == "approved"
+        assert pending_count == 0
+        assert total_count == 1
