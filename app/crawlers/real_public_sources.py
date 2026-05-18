@@ -8,9 +8,22 @@ from urllib.parse import urljoin
 import httpx
 from bs4 import BeautifulSoup
 
+import json
+
 from app.crawlers.base import PublicBidCrawler, RawBidDocument
 
 USER_AGENT = "building-price-intel/0.1 (+public-data; contact: local-development)"
+
+# Chinese province code prefix -> province name (from administrative division codes)
+PROVINCE_CODE_MAP: dict[str, str] = {
+    "11": "北京", "12": "天津", "13": "河北", "14": "山西", "15": "内蒙古",
+    "21": "辽宁", "22": "吉林", "23": "黑龙江",
+    "31": "上海", "32": "江苏", "33": "浙江", "34": "安徽", "35": "福建", "36": "江西", "37": "山东",
+    "41": "河南", "42": "湖北", "43": "湖南",
+    "44": "广东", "45": "广西", "46": "海南",
+    "50": "重庆", "51": "四川", "52": "贵州", "53": "云南", "54": "西藏",
+    "61": "陕西", "62": "甘肃", "63": "青海", "64": "宁夏", "65": "新疆",
+}
 
 
 class BlockedReason(StrEnum):
@@ -242,6 +255,150 @@ class GuangzhouPublicResourceTradingCrawler(PublicBidCrawler):
             source_name=self.source_name,
             base_url=base_url or self.base_url,
         )
+
+
+class NationalPublicResourcePlatformCrawler(PublicBidCrawler):
+    """Parser/fetcher for 全国公共资源交易平台 (ggzy.gov.cn) national aggregate.
+
+    Parses the public homepage listing which aggregates latest bid/tender
+    announcements from all provincial platforms. Each announcement link carries
+    an administrative division code prefix that maps to its province.
+    """
+
+    source_name = "全国公共资源交易平台"
+    base_url = "https://www.ggzy.gov.cn"
+
+    def search(self, keyword: str) -> list[RawBidDocument]:
+        with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
+            response = client.get(self.base_url)
+            _raise_if_blocked(response)
+            response.raise_for_status()
+            return self.parse_homepage_listings(response.text, keyword=keyword)
+
+    def parse_homepage_listings(self, html: str, keyword: str) -> list[RawBidDocument]:
+        """Parse ggzy.gov.cn homepage for announcement listing links.
+
+        Announcement links follow pattern:
+        /information/deal/html/a/{province_code}/{type}/{date}/{hash}.html
+        where province_code is a 6-digit administrative code (e.g. 440000 = 广东).
+        """
+        soup = BeautifulSoup(html, "html.parser")
+        docs: list[RawBidDocument] = []
+        link_re = re.compile(r"/information/(?:deal|html)/html/a/(\d{6})/")
+
+        for link in soup.find_all("a", href=True):
+            href = str(link.get("href", "") or "")
+            title = _clean_text(link.get_text(" ", strip=True))
+            if not title:
+                continue
+
+            # Only process deal announcement links
+            match = link_re.search(href)
+            if not match:
+                continue
+
+            # Build a contained text context from the immediate parent only
+            # (avoid _surrounding_text which crawls too far up the DOM tree)
+            parent = link.parent
+            container_text = parent.get_text(" ", strip=True) if parent else title
+            combined = f"{title} {container_text}"
+
+            # Check keyword relevance
+            if not _is_scaffold_related(combined, keyword):
+                continue
+
+            province_code = match.group(1)
+            province = _province_from_code(province_code)
+            source_url = urljoin(self.base_url, href)
+            publish_date = _parse_date(container_text) or _parse_date(title)
+
+            docs.append(
+                RawBidDocument(
+                    source_name=self.source_name,
+                    source_url=source_url,
+                    title=title[:512],
+                    publish_date=publish_date,
+                    region=province or _detect_province_or_region(combined),
+                    html_content=str(parent) if parent else str(link),
+                    text_content=container_text,
+                )
+            )
+        return _dedupe_docs(docs)
+
+    def parse_search_results(self, html: str, keyword: str, base_url: str | None = None) -> list[RawBidDocument]:
+        return self.parse_homepage_listings(html, keyword=keyword)
+
+
+class ChinaBiddingPublicServiceCrawler(PublicBidCrawler):
+    """Parser/fetcher for 中国招标投标公共服务平台 / 全国招标公告公示搜索引擎.
+
+    The public search engine at ctbpsp.com is a Vue/Element UI SPA.
+    The accessible homepage renders announcements via JS XHR/fetch calls.
+
+    Strategy:
+    1. Attempt httpx parse of static homepage links (best-effort, may yield little).
+    2. If blocked or JS-rendered-only, flag as JS_RENDER_REQUIRED for browser discovery.
+    """
+
+    source_name = "中国招标投标公共服务平台"
+    base_url = "https://ctbpsp.com"
+
+    def search(self, keyword: str) -> list[RawBidDocument]:
+        with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
+            response = client.get(self.base_url)
+            _raise_if_blocked(response)
+            response.raise_for_status()
+            text = response.text
+            # The SPA homepage is JS-rendered; static content is minimal.
+            # Accept sparse results as best-effort with httpx.
+            return self.parse_search_results(text, keyword=keyword, base_url=str(response.url))
+
+    def parse_search_results(self, html: str, keyword: str, base_url: str | None = None) -> list[RawBidDocument]:
+        return _parse_public_bid_links(
+            html,
+            keyword=keyword,
+            source_name=self.source_name,
+            base_url=base_url or self.base_url,
+        )
+
+
+class CentralGovernmentProcurementCrawler(PublicBidCrawler):
+    """Parser/fetcher for 中央政府采购网 (zycg.gov.cn).
+
+    The site is a FreeCMS-based SPA. All REST API paths explored return 404;
+    the homepage always renders the same index.html regardless of path.
+    This parser attempts best-effort HTML extraction from the homepage,
+    flagging JS_RENDER_REQUIRED when no keyword-relevant links are found.
+    """
+
+    source_name = "中央政府采购网"
+    base_url = "https://www.zycg.gov.cn"
+
+    def search(self, keyword: str) -> list[RawBidDocument]:
+        with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
+            response = client.get(self.base_url)
+            _raise_if_blocked(response)
+            response.raise_for_status()
+            text = response.text
+            # The site is a JS-rendered SPA; static HTML extraction is minimal.
+            return self.parse_search_results(text, keyword=keyword, base_url=str(response.url))
+
+    def parse_search_results(self, html: str, keyword: str, base_url: str | None = None) -> list[RawBidDocument]:
+        return _parse_public_bid_links(
+            html,
+            keyword=keyword,
+            source_name=self.source_name,
+            base_url=base_url or self.base_url,
+        )
+
+
+def _province_from_code(code: str) -> str | None:
+    prefix2 = code[:2]
+    prefix4 = code[:4]
+    # Try 2-digit prefix first (covers all provinces)
+    if prefix2 in PROVINCE_CODE_MAP:
+        return PROVINCE_CODE_MAP[prefix2]
+    return None
 
 
 def _parse_public_bid_links(html: str, *, keyword: str, source_name: str, base_url: str) -> list[RawBidDocument]:

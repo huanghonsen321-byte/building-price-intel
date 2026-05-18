@@ -15,10 +15,13 @@ from app.crawlers.real_public_sources import (
     BlockedReason,
     BlockedSourceError,
     BusinessSocietyPriceCrawler,
+    CentralGovernmentProcurementCrawler,
+    ChinaBiddingPublicServiceCrawler,
     ChinaGovernmentProcurementCrawler,
     GuangdongGovernmentProcurementSmartCloudCrawler,
     GuangdongPublicResourceTradingCrawler,
     GuangzhouPublicResourceTradingCrawler,
+    NationalPublicResourcePlatformCrawler,
     PublicPriceRow,
 )
 from app.models.crawl import BidRawDocument, CrawlSource, CrawlTask
@@ -29,20 +32,23 @@ from app.services.bid_service import create_or_update_case_from_extraction
 
 
 BID_CRAWLER_REGISTRY = {
+    "CentralGovernmentProcurementCrawler": CentralGovernmentProcurementCrawler,
+    "ChinaBiddingPublicServiceCrawler": ChinaBiddingPublicServiceCrawler,
     "ChinaGovernmentProcurementCrawler": ChinaGovernmentProcurementCrawler,
     "GuangdongPublicResourceTradingCrawler": GuangdongPublicResourceTradingCrawler,
     "GuangdongGovernmentProcurementSmartCloudCrawler": GuangdongGovernmentProcurementSmartCloudCrawler,
     "GuangzhouPublicResourceTradingCrawler": GuangzhouPublicResourceTradingCrawler,
+    "NationalPublicResourcePlatformCrawler": NationalPublicResourcePlatformCrawler,
 }
 
 
 FALLBACK_SOURCE_CONFIGS = [
     {
-        "name": "全国公共资源交易平台汇总搜索",
-        "url": "https://www.ggzy.gov.cn/information/html/a/",
-        "source_type": "bid",
-        "parser_name": "ChinaGovernmentProcurementCrawler",
-        "enabled": False,
+        "name": "全国公共资源交易平台",
+        "url": NationalPublicResourcePlatformCrawler.base_url,
+        "source_type": "real_public_bid",
+        "parser_name": "NationalPublicResourcePlatformCrawler",
+        "enabled": True,
         "fallback_kind": "national_public_resource_aggregate",
     },
     {
@@ -53,16 +59,53 @@ FALLBACK_SOURCE_CONFIGS = [
         "enabled": True,
         "fallback_kind": "china_government_procurement",
     },
+    {
+        "name": "中国招标投标公共服务平台",
+        "url": ChinaBiddingPublicServiceCrawler.base_url,
+        "source_type": "real_public_bid",
+        "parser_name": "ChinaBiddingPublicServiceCrawler",
+        "enabled": True,
+        "fallback_kind": "national_bidding_public_service",
+    },
+    {
+        "name": "中央政府采购网",
+        "url": CentralGovernmentProcurementCrawler.base_url,
+        "source_type": "real_public_bid",
+        "parser_name": "CentralGovernmentProcurementCrawler",
+        "enabled": True,
+        "fallback_kind": "central_government_procurement",
+    },
 ]
 
 DEFAULT_BID_SOURCE_CONFIGS = [
+    {
+        "name": "全国公共资源交易平台",
+        "url": NationalPublicResourcePlatformCrawler.base_url,
+        "source_type": "real_public_bid",
+        "parser_name": "NationalPublicResourcePlatformCrawler",
+        "enabled": True,
+    },
     {
         "name": "中国政府采购网",
         "url": ChinaGovernmentProcurementCrawler.base_url,
         "source_type": "real_public_bid",
         "parser_name": "ChinaGovernmentProcurementCrawler",
         "enabled": True,
-    }
+    },
+    {
+        "name": "中国招标投标公共服务平台",
+        "url": ChinaBiddingPublicServiceCrawler.base_url,
+        "source_type": "real_public_bid",
+        "parser_name": "ChinaBiddingPublicServiceCrawler",
+        "enabled": True,
+    },
+    {
+        "name": "中央政府采购网",
+        "url": CentralGovernmentProcurementCrawler.base_url,
+        "source_type": "real_public_bid",
+        "parser_name": "CentralGovernmentProcurementCrawler",
+        "enabled": True,
+    },
 ]
 
 

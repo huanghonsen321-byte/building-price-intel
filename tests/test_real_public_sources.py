@@ -6,10 +6,13 @@ from sqlalchemy import select
 from app.core.database import SessionLocal
 from app.crawlers.real_public_sources import (
     BusinessSocietyPriceCrawler,
+    CentralGovernmentProcurementCrawler,
+    ChinaBiddingPublicServiceCrawler,
     ChinaGovernmentProcurementCrawler,
     GuangdongGovernmentProcurementSmartCloudCrawler,
     GuangdongPublicResourceTradingCrawler,
     GuangzhouPublicResourceTradingCrawler,
+    NationalPublicResourcePlatformCrawler,
 )
 from app.models.crawl import BidRawDocument, CrawlSource
 from app.models.price import PriceDaily
@@ -177,3 +180,135 @@ def test_run_public_crawl_parses_ten_thousand_yuan_and_approx_area() -> None:
         assert case.rental_days == 180
         assert case.price_references
         assert case.price_references[0].calculated_price == Decimal("74.33")
+
+
+NATIONAL_PUBLIC_RESOURCE_HTML = """
+<html><body>
+<div class="main-list">
+  <ul>
+    <li>
+      <a href="/information/deal/html/a/440000/0104/20260518/0044abc123def456deadbeef20260518.html">广州市某工程项目盘扣式脚手架租赁中标候选人公示</a>
+      <span>2026-05-18</span>
+    </li>
+    <li>
+      <a href="/information/deal/html/a/510000/0202/20260517/0051def789ghi012deadbeef20260517.html">成都市某学校项目钢管脚手架采购成交结果公告</a>
+      <span>2026-05-17</span>
+    </li>
+    <li>
+      <a href="/information/deal/html/a/320000/0101/20260516/0032ghi345jkl678deadbeef20260516.html">南京市某商业中心扣件式脚手架搭拆专业分包招标公告</a>
+      <span>2026-05-16</span>
+    </li>
+    <li>
+      <a href="/information/deal/html/a/130000/0201/20260518/0013jkl901mno234deadbeef20260518.html">石家庄市某医院装修工程招标公告</a>
+      <span>2026-05-18</span>
+    </li>
+  </ul>
+</div>
+</body></html>
+"""
+
+CTBPSP_HOMEPAGE_HTML = """
+<html><body>
+<div class="el-container">
+  <ul class="bulletin-list">
+    <li>
+      <a href="/bulletin/detail/12345">广东省深圳市周转材料租赁服务中标公告</a>
+      <p>发布时间：2026-05-18 中标金额：450万元</p>
+    </li>
+    <li>
+      <a href="/bulletin/detail/12346">北京市某大学教学楼建设工程招标公告</a>
+      <p>发布时间：2026-05-17</p>
+    </li>
+  </ul>
+</div>
+</body></html>
+"""
+
+ZYCG_HOMEPAGE_HTML = """
+<html><body>
+<div class="container">
+  <div class="list">
+    <ul>
+      <li>
+        <a href="/freecms/site/zygjjgzfcgzx/ggxx/info/2026/12345.htm">中央国家机关某部门盘扣式脚手架采购项目中标公告</a>
+        <span>发布日期：2026-05-18</span>
+      </li>
+    </ul>
+  </div>
+</div>
+</body></html>
+"""
+
+
+def test_national_public_resource_platform_parses_ggzy_homepage() -> None:
+    crawler = NationalPublicResourcePlatformCrawler()
+    docs = crawler.parse_homepage_listings(NATIONAL_PUBLIC_RESOURCE_HTML, keyword="脚手架")
+    assert len(docs) == 3
+    gd = [d for d in docs if d.region == "广东"][0]
+    assert gd.source_name == "全国公共资源交易平台"
+    assert "盘扣式脚手架租赁" in gd.title
+    assert "440000" in gd.source_url
+    assert gd.publish_date == date(2026, 5, 18)
+    sc = [d for d in docs if d.region == "四川"][0]
+    assert "钢管脚手架" in sc.title
+    assert "510000" in sc.source_url
+    js = [d for d in docs if d.region == "江苏"][0]
+    assert "扣件式脚手架" in js.title
+
+
+def test_national_public_resource_platform_skips_non_scaffold_links() -> None:
+    """Non-scaffold announcement links from ggzy.gov.cn are filtered out."""
+    html = """<html><body>
+    <ul>
+    <li><a href="/information/deal/html/a/440000/0202/20260518/hash1.html">某市办公设备采购公告</a><span>2026-05-18</span></li>
+    <li><a href="/information/deal/html/a/440000/0101/20260518/hash2.html">某市盘扣脚手架租赁招标</a><span>2026-05-18</span></li>
+    </ul>
+    </body></html>"""
+    crawler = NationalPublicResourcePlatformCrawler()
+    docs = crawler.parse_homepage_listings(html, keyword="脚手架")
+    assert len(docs) == 1
+    assert "盘扣" in docs[0].title
+
+
+def test_china_bidding_public_service_parses_ctbpsp_links() -> None:
+    crawler = ChinaBiddingPublicServiceCrawler()
+    docs = crawler.parse_search_results(CTBPSP_HOMEPAGE_HTML, keyword="周转材料")
+    assert len(docs) >= 1
+    doc = docs[0]
+    assert doc.source_name == "中国招标投标公共服务平台"
+    assert "周转材料租赁" in doc.title
+    assert doc.source_url.startswith("https://ctbpsp.com")
+
+
+def test_central_government_procurement_parses_zycg_links() -> None:
+    crawler = CentralGovernmentProcurementCrawler()
+    docs = crawler.parse_search_results(ZYCG_HOMEPAGE_HTML, keyword="盘扣")
+    assert len(docs) >= 1
+    doc = docs[0]
+    assert doc.source_name == "中央政府采购网"
+    assert "盘扣式脚手架" in doc.title
+    assert doc.source_url.startswith("https://www.zycg.gov.cn")
+    assert doc.publish_date == date(2026, 5, 18)
+
+
+def test_run_public_crawl_includes_national_aggregate_sources() -> None:
+    """National aggregate sources are registered as default bid configs and callable."""
+    from app.services.crawl_service import DEFAULT_BID_SOURCE_CONFIGS, BID_CRAWLER_REGISTRY, _enabled_bid_source_configs
+
+    # Verify registry includes all national sources
+    for name in ("NationalPublicResourcePlatformCrawler", "ChinaBiddingPublicServiceCrawler", "CentralGovernmentProcurementCrawler"):
+        assert name in BID_CRAWLER_REGISTRY, f"Missing {name} in BID_CRAWLER_REGISTRY"
+
+    # Verify default configs include national sources
+    configs = _enabled_bid_source_configs(None, include_default_sources=True)
+    parser_names = {c["parser_name"] for c in configs if c.get("parser_name")}
+    for name in ("NationalPublicResourcePlatformCrawler", "ChinaGovernmentProcurementCrawler", "ChinaBiddingPublicServiceCrawler", "CentralGovernmentProcurementCrawler"):
+        assert name in parser_names, f"Missing {name} in enabled bid source configs"
+
+    # Verify sources are persisted after a crawl with HTML
+    with SessionLocal() as db:
+        task = run_public_crawl(db, keyword="脚手架", price_html=PRICE_HTML, bid_html=BID_HTML)
+        assert task.status == "success"
+        source_names = set(db.scalars(select(CrawlSource.name)).all())
+        for name in ("全国公共资源交易平台", "中国政府采购网", "中国招标投标公共服务平台", "中央政府采购网"):
+            assert name in source_names, f"Expected source {name} in CrawlSource table"
