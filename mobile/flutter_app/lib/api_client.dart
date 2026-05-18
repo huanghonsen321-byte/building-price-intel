@@ -46,8 +46,8 @@ class ApiClient {
     return PageResult.fromJson(res.data as Map<String, dynamic>, ScaffoldPriceReference.fromJson);
   }
 
-  Future<ScaffoldQuoteResult> calculateQuote({String scaffoldType = '盘扣', String? region, double? areaM2, double? rentalDays, double? rentalMonths, double? tonnage}) async {
-    final res = await dio.post('/api/quote/scaffold/calculate', data: _clean({'scaffold_type': scaffoldType, 'region': region, 'area_m2': areaM2, 'rental_days': rentalDays, 'rental_months': rentalMonths, 'tonnage': tonnage}));
+  Future<ScaffoldQuoteResult> calculateQuote({String scaffoldType = '盘扣', String? region, String? pricingMethod, double? areaM2, double? rentalDays, double? rentalMonths, double? tonnage, double? setupDismantleFee, double? transportFee, double? lossRate, double? taxRate, double? profitRate, double? fixedTotalPrice}) async {
+    final res = await dio.post('/api/quote/scaffold/calculate', data: _clean({'scaffold_type': scaffoldType, 'region': region, 'pricing_method': pricingMethod, 'area_m2': areaM2, 'rental_days': rentalDays, 'rental_months': rentalMonths, 'tonnage': tonnage, 'setup_dismantle_fee': setupDismantleFee, 'transport_fee': transportFee, 'loss_rate': lossRate, 'tax_rate': taxRate, 'profit_rate': profitRate, 'fixed_total_price': fixedTotalPrice}));
     return ScaffoldQuoteResult.fromJson(res.data as Map<String, dynamic>);
   }
 

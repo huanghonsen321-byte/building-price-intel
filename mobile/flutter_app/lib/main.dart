@@ -281,15 +281,39 @@ class _QuotePageState extends State<QuotePage> {
   final region = TextEditingController(text: '呼和浩特');
   final area = TextEditingController(text: '1000');
   final days = TextEditingController(text: '90');
+  final months = TextEditingController();
   final tons = TextEditingController();
+  final setupFee = TextEditingController();
+  final transportFee = TextEditingController();
+  final lossRate = TextEditingController(text: '0.02');
+  final taxRate = TextEditingController(text: '0.09');
+  final profitRate = TextEditingController(text: '0.12');
+  final fixedTotal = TextEditingController();
+  String pricingMethod = '元/㎡';
   ScaffoldQuoteResult? result;
   String? error;
   bool loading = false;
 
+  double? _num(TextEditingController c) => double.tryParse(c.text);
+
   Future<void> submit() async {
     setState(() { loading = true; error = null; });
     try {
-      result = await widget.api.calculateQuote(scaffoldType: type.text, region: region.text, areaM2: double.tryParse(area.text), rentalDays: double.tryParse(days.text), tonnage: double.tryParse(tons.text));
+      result = await widget.api.calculateQuote(
+        scaffoldType: type.text,
+        region: region.text,
+        pricingMethod: pricingMethod,
+        areaM2: _num(area),
+        rentalDays: _num(days),
+        rentalMonths: _num(months),
+        tonnage: _num(tons),
+        setupDismantleFee: _num(setupFee),
+        transportFee: _num(transportFee),
+        lossRate: _num(lossRate),
+        taxRate: _num(taxRate),
+        profitRate: _num(profitRate),
+        fixedTotalPrice: _num(fixedTotal),
+      );
     } catch (e) {
       error = e.toString();
     } finally {
@@ -301,15 +325,58 @@ class _QuotePageState extends State<QuotePage> {
   Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(12), children: [
         FilterField(controller: type, label: '脚手架类型'),
         FilterField(controller: region, label: '地区'),
+        DropdownButtonFormField<String>(
+          initialValue: pricingMethod,
+          decoration: const InputDecoration(labelText: '计价方式', border: OutlineInputBorder()),
+          items: const ['元/㎡', '元/吨/天', '元/月', '总价折算'].map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
+          onChanged: (v) => setState(() => pricingMethod = v ?? '元/㎡'),
+        ),
+        const SizedBox(height: 8),
         FilterField(controller: area, label: '面积㎡', keyboardType: TextInputType.number),
         FilterField(controller: days, label: '租赁天数', keyboardType: TextInputType.number),
-        FilterField(controller: tons, label: '吨数（元/吨/天时使用）', keyboardType: TextInputType.number),
+        FilterField(controller: months, label: '租赁月数', keyboardType: TextInputType.number),
+        FilterField(controller: tons, label: '吨数', keyboardType: TextInputType.number),
+        const SizedBox(height: 8),
+        ExpansionTile(title: const Text('高级成本项'), children: [
+          FilterField(controller: setupFee, label: '搭拆费', keyboardType: TextInputType.number),
+          FilterField(controller: transportFee, label: '运输费', keyboardType: TextInputType.number),
+          FilterField(controller: lossRate, label: '损耗率(0.02)', keyboardType: TextInputType.number),
+          FilterField(controller: taxRate, label: '税率(0.09)', keyboardType: TextInputType.number),
+          FilterField(controller: profitRate, label: '利润率(0.12)', keyboardType: TextInputType.number),
+          FilterField(controller: fixedTotal, label: '总价折算', keyboardType: TextInputType.number),
+        ]),
         const SizedBox(height: 12),
         FilledButton.icon(onPressed: loading ? null : submit, icon: const Icon(Icons.calculate), label: Text(loading ? '计算中...' : '计算报价')),
         if (error != null) ErrorCard(message: error!, onRetry: submit),
         if (result == null && error == null) const EmptyCard(message: '输入条件后点击计算'),
-        if (result != null) Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('估算结果', style: Theme.of(context).textTheme.titleLarge), Text('参考价：${result!.referencePrice.toStringAsFixed(2)} ${result!.calculatedUnit}'), Text('估算金额：${result!.estimatedAmount?.toStringAsFixed(2) ?? '参数不足'}'), Text('置信度：${result!.confidence} / 样本：${result!.referenceCount}'), Text('公式：${result!.formula}')]))),
+        if (result != null) QuoteResultCard(result: result!),
       ]);
+}
+
+class QuoteResultCard extends StatelessWidget {
+  const QuoteResultCard({super.key, required this.result});
+  final ScaffoldQuoteResult result;
+  @override
+  Widget build(BuildContext context) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Row(children: [Expanded(child: Text('估算结果', style: Theme.of(context).textTheme.titleLarge)), IconButton(tooltip: '复制报价结果', onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('已生成报价结果，可截图/复制文本'))), icon: const Icon(Icons.copy))]),
+            Text('计价方式：${result.pricingMethod}'),
+            Text('参考价：${result.referencePrice.toStringAsFixed(2)} ${result.calculatedUnit}'),
+            Text('估算金额：${result.estimatedAmount?.toStringAsFixed(2) ?? '参数不足'}'),
+            if (result.unitAreaPrice != null) Text('单方价：${result.unitAreaPrice!.toStringAsFixed(2)} 元/㎡'),
+            if (result.unitTonDayPrice != null) Text('吨日综合价：${result.unitTonDayPrice!.toStringAsFixed(2)} 元/吨/天'),
+            Text('置信度：${result.confidence} / 样本：${result.referenceCount}'),
+            const Divider(),
+            Text('费用拆分', style: Theme.of(context).textTheme.titleMedium),
+            Text('材料租赁费：${result.costBreakdown.baseRentalFee.toStringAsFixed(2)}'),
+            Text('搭拆费：${result.costBreakdown.setupDismantleFee.toStringAsFixed(2)} / 运输费：${result.costBreakdown.transportFee.toStringAsFixed(2)}'),
+            Text('损耗：${result.costBreakdown.lossFee.toStringAsFixed(2)} / 税费：${result.costBreakdown.taxFee.toStringAsFixed(2)} / 利润：${result.costBreakdown.profitFee.toStringAsFixed(2)}'),
+            Text('公式：${result.formula}'),
+          ]),
+        ),
+      );
 }
 
 class TrendLineChart extends StatelessWidget {

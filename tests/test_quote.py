@@ -26,6 +26,33 @@ def test_quote_missing_required_fields_returns_null_estimate(client) -> None:
         assert "area_m2" in data["formula"]
 
 
+def test_quote_area_unit_with_advanced_cost_breakdown(client) -> None:
+    client.post("/api/crawl/run", json={"keyword": "脚手架"})
+    response = client.post(
+        "/api/quote/scaffold/calculate",
+        json={
+            "scaffold_type": "盘扣",
+            "area_m2": 1000,
+            "setup_dismantle_fee": 12000,
+            "transport_fee": 3000,
+            "loss_rate": 0.02,
+            "tax_rate": 0.09,
+            "profit_rate": 0.12,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["estimated_amount"] is not None
+    assert Decimal(data["cost_breakdown"]["base_rental_fee"]) > 0
+    assert data["cost_breakdown"]["setup_dismantle_fee"] == "12000.00"
+    assert data["cost_breakdown"]["transport_fee"] == "3000.00"
+    assert Decimal(data["cost_breakdown"]["tax_fee"]) > 0
+    assert Decimal(data["cost_breakdown"]["profit_fee"]) > 0
+    assert data["unit_area_price"] is not None
+    assert "税费" in data["formula"]
+
+
+
 def test_quote_ton_day_unit(client) -> None:
     suffix = uuid4().hex
     scaffold_type = f"吨日脚手架-{suffix}"
