@@ -29,7 +29,7 @@ cd /home/huanghonsen/building-price-intel
 
 1. `alembic upgrade head`
 2. 如果价格表为空，自动写入 seed baseline，保证行情摘要可用
-3. 对 `DAILY_CRAWL_KEYWORDS` 逐个运行公开数据采集
+3. 对 `DAILY_CRAWL_KEYWORDS` 逐个运行公开数据采集；单个关键词失败时按 `DAILY_CRAWL_RETRY_ATTEMPTS` 重试，使用 `DAILY_CRAWL_RETRY_BACKOFF_SECONDS` 递增退避
 4. 对 pending raw bid documents 执行 AI 抽取；`--no-vllm` 时使用离线规则 fallback
 5. 生成今日行情中文摘要
 6. 发送每日早报
