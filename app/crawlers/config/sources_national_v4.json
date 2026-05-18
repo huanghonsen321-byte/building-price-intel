@@ -108,14 +108,42 @@
     },
     {
       "name": "全国公共资源交易平台",
-      "url": "http://www.ggzy.gov.cn/",
-      "type": "planned_public_adapter",
-      "priority": 3,
-      "enabled": false,
+      "url": "https://www.ggzy.gov.cn",
+      "type": "httpx_html",
+      "source_type": "real_public_bid",
+      "parser_name": "NationalPublicResourcePlatformCrawler",
+      "priority": 2,
+      "enabled": true,
       "regions": [
         "全国"
       ],
-      "notes": "待确认公开搜索接口后接入，先作为配置候选"
+      "notes": "已接入 NationalPublicResourcePlatformCrawler，解析 ggzy.gov.cn 首页公告列表，根据行政区划代码映射省份。"
+    },
+    {
+      "name": "中国招标投标公共服务平台",
+      "url": "https://ctbpsp.com",
+      "type": "httpx_html",
+      "source_type": "real_public_bid",
+      "parser_name": "ChinaBiddingPublicServiceCrawler",
+      "priority": 3,
+      "enabled": true,
+      "regions": [
+        "全国"
+      ],
+      "notes": "已接入 ChinaBiddingPublicServiceCrawler，Vue SPA 首页最佳努力解析，JS 渲染页面需后续 browser discovery 增强。"
+    },
+    {
+      "name": "中央政府采购网",
+      "url": "https://www.zycg.gov.cn",
+      "type": "httpx_html",
+      "source_type": "real_public_bid",
+      "parser_name": "CentralGovernmentProcurementCrawler",
+      "priority": 4,
+      "enabled": true,
+      "regions": [
+        "全国"
+      ],
+      "notes": "已接入 CentralGovernmentProcurementCrawler，FreeCMS SPA 最佳努力解析，静态提取有限，需后续 browser discovery 增强。"
     },
     {
       "name": "央企采购公开公告",
