@@ -69,9 +69,11 @@ class SourceLibraryStats:
     parser_ready_sources: int = 0
     blocked_sources: int = 0
     national_sources: int = 0
-    guangdong_sources: int = 0
     province_source_count: int = 0
     city_source_count: int = 0
+    guangdong_sources: int = 0
+    guangdong_parser_ready_sources: int = 0
+    bid_source_count: int = 0
     price_source_count: int = 0
     attachment_source_count: int = 0
     manual_import_sources: int = 0

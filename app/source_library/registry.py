@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
 
 from app.source_library.schemas import (
     SourceEntry,
@@ -19,44 +18,21 @@ KEYWORD_LIBRARY_PATH = CONFIG_DIR / "keyword_library.json"
 _cache: dict | None = None
 _entries_cache: list[SourceEntry] | None = None
 
+# Category → default source_level mapping
+CATEGORY_TO_LEVEL: dict[str, str] = {
+    "national_sources": "national",
+    "guangdong_provincial_sources": "province",
+    "guangdong_city_sources": "city",
+    "national_province_sources": "province",
+    "price_sources": "price",
+    "manual_import_sources": "manual",
+}
+
 
 def _flatten_sources(data: dict) -> list[SourceEntry]:
     """Flatten all source categories into a single list of SourceEntry objects."""
     entries: list[SourceEntry] = []
     index = 0
-
-    def _add(source: dict, category: str = "") -> None:
-        nonlocal index
-        index += 1
-        entry = SourceEntry(
-            name=source.get("name", f"source-{index}"),
-            url=source.get("url", ""),
-            domain=source.get("domain", ""),
-            source_level=source.get("source_level", "national"),
-            source_type=source.get("source_type", "bid"),
-            acquisition_method=source.get("acquisition_method", "html_list_page"),
-            keywords=source.get("keywords", []),
-            parser_name=source.get("parser_name"),
-            enabled=source.get("enabled", False),
-            parser_status=source.get("parser_status", "not_started"),
-            requires_browser=source.get("requires_browser", False),
-            requires_manual_review=source.get("requires_manual_review", False),
-            rate_limit_seconds=source.get("rate_limit_seconds", 3),
-            reliability_score=source.get("reliability_score", 0.0),
-            province=source.get("province"),
-            city=source.get("city"),
-            district=source.get("district"),
-            country=source.get("country", "CN"),
-            public_api_found=source.get("public_api_found", False),
-            public_page_reachable=source.get("public_page_reachable", False),
-            last_success_at=source.get("last_success_at"),
-            last_failed_at=source.get("last_failed_at"),
-            last_blocked_reason=source.get("last_blocked_reason"),
-            tags=source.get("tags", []),
-            notes=source.get("notes", ""),
-            category=category,
-        )
-        entries.append(entry)
 
     for cat_key, cat_label in [
         ("national_sources", "national"),
@@ -66,8 +42,39 @@ def _flatten_sources(data: dict) -> list[SourceEntry]:
         ("price_sources", "price"),
         ("manual_import_sources", "manual"),
     ]:
+        default_level = CATEGORY_TO_LEVEL.get(cat_key, "national")
         for source in data.get(cat_key, []):
-            _add(source, cat_label)
+            index += 1
+            entry = SourceEntry(
+                name=source.get("name", f"source-{index}"),
+                url=source.get("url", ""),
+                domain=source.get("domain", ""),
+                # Respect explicit source_level in JSON, else derive from category
+                source_level=source.get("source_level", default_level),
+                source_type=source.get("source_type", "bid"),
+                acquisition_method=source.get("acquisition_method", "html_list_page"),
+                keywords=source.get("keywords", []),
+                parser_name=source.get("parser_name"),
+                enabled=source.get("enabled", False),
+                parser_status=source.get("parser_status", "not_started"),
+                requires_browser=source.get("requires_browser", False),
+                requires_manual_review=source.get("requires_manual_review", False),
+                rate_limit_seconds=source.get("rate_limit_seconds", 3),
+                reliability_score=source.get("reliability_score", 0.0),
+                province=source.get("province"),
+                city=source.get("city"),
+                district=source.get("district"),
+                country=source.get("country", "CN"),
+                public_api_found=source.get("public_api_found", False),
+                public_page_reachable=source.get("public_page_reachable", False),
+                last_success_at=source.get("last_success_at"),
+                last_failed_at=source.get("last_failed_at"),
+                last_blocked_reason=source.get("last_blocked_reason"),
+                tags=source.get("tags", []),
+                notes=source.get("notes", ""),
+                category=cat_label,
+            )
+            entries.append(entry)
 
     return entries
 
@@ -95,7 +102,7 @@ def _entries() -> list[SourceEntry]:
 
 
 def get_sources(query: SourceQuery | None = None) -> list[SourceEntry]:
-    """Get sources filtered by query parameters."""
+    """Get sources filtered by query parameters. Returns ALL sources by default."""
     all_entries = _entries()
     if query is None:
         return all_entries
@@ -144,7 +151,7 @@ def get_source_count(query: SourceQuery | None = None) -> int:
 
 
 def get_stats() -> SourceLibraryStats:
-    """Compute aggregate statistics."""
+    """Compute aggregate statistics with correct source_level attribution."""
     all_entries = _entries()
 
     stats = SourceLibraryStats()
@@ -154,29 +161,43 @@ def get_stats() -> SourceLibraryStats:
     by_pstatus: dict[str, int] = {}
 
     for e in all_entries:
+        # ---- enabled / parser status ----
         if e.enabled:
             stats.enabled_sources += 1
         if e.parser_status == "parser_ready":
             stats.parser_ready_sources += 1
         if e.parser_status == "blocked":
             stats.blocked_sources += 1
+
+        # ---- source level distribution ----
         if e.source_level == "national":
             stats.national_sources += 1
+        elif e.source_level == "province":
+            stats.province_source_count += 1
+        elif e.source_level == "city":
+            stats.city_source_count += 1
+
+        # ---- guangdong ----
         if e.province == "广东":
             stats.guangdong_sources += 1
-        if e.source_level == "province" and e.province != "广东":
-            stats.province_source_count += 1
-        if e.city:
-            stats.city_source_count += 1
+            if e.parser_status == "parser_ready":
+                stats.guangdong_parser_ready_sources += 1
+
+        # ---- source type ----
         if e.source_type == "price":
             stats.price_source_count += 1
         if e.source_type == "attachment":
             stats.attachment_source_count += 1
+        if e.source_type == "bid":
+            stats.bid_source_count += 1
+
+        # ---- acquisition method ----
         if e.acquisition_method == "manual_import":
             stats.manual_import_sources += 1
         if e.acquisition_method == "authorized_api":
             stats.authorized_api_sources += 1
 
+        # ---- distributions ----
         meth = e.acquisition_method or "unknown"
         by_method[meth] = by_method.get(meth, 0) + 1
         pst = e.parser_status or "unknown"
