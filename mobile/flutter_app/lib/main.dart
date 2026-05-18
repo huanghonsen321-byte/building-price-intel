@@ -181,18 +181,77 @@ class _BidCasesPageState extends State<BidCasesPage> {
   final keyword = TextEditingController(text: '脚手架');
   final province = TextEditingController();
   final type = TextEditingController(text: '盘扣');
-  int reload = 0;
+  final items = <ScaffoldBidCase>[];
+  int page = 1;
+  int total = 0;
+  bool loading = false;
+  String? error;
+
+  @override
+  void initState() {
+    super.initState();
+    load(reset: true);
+  }
+
+  Future<void> load({bool reset = false}) async {
+    if (loading) return;
+    setState(() { loading = true; error = null; });
+    try {
+      final nextPage = reset ? 1 : page + 1;
+      final result = await widget.api.scaffoldBids(keyword: keyword.text, province: province.text, scaffoldType: type.text, page: nextPage, pageSize: 10);
+      setState(() {
+        if (reset) items.clear();
+        items.addAll(result.items);
+        page = result.page;
+        total = result.total;
+      });
+    } catch (e) {
+      setState(() => error = e.toString());
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
+
+  Future<void> openFilters() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(left: 16, right: 16, top: 16, bottom: MediaQuery.of(context).viewInsets.bottom + 16),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text('筛选中标案例', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          FilterField(controller: keyword, label: '关键词'),
+          FilterField(controller: province, label: '省份'),
+          FilterField(controller: type, label: '类型'),
+          const SizedBox(height: 12),
+          Row(children: [
+            TextButton(onPressed: () { keyword.text = '脚手架'; province.clear(); type.clear(); }, child: const Text('清空筛选')),
+            const Spacer(),
+            FilledButton(onPressed: () { Navigator.pop(context); load(reset: true); }, child: const Text('应用')),
+          ]),
+        ]),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) => Column(children: [
-        FilterBar(children: [FilterField(controller: keyword, label: '关键词'), FilterField(controller: province, label: '省份'), FilterField(controller: type, label: '类型'), FilledButton(onPressed: () => setState(() => reload++), child: const Text('筛选'))]),
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(children: [Expanded(child: Text('共 $total 条 · ${keyword.text}${province.text.isEmpty ? '' : ' · ${province.text}'}', overflow: TextOverflow.ellipsis)), OutlinedButton.icon(onPressed: openFilters, icon: const Icon(Icons.tune), label: const Text('筛选'))]),
+        ),
         Expanded(
-          child: LoadState<PageResult<ScaffoldBidCase>>(
-            key: ValueKey(reload),
-            loader: () => widget.api.scaffoldBids(keyword: keyword.text, province: province.text, scaffoldType: type.text),
-            isEmpty: (p) => p.items.isEmpty,
-            builder: (context, page, refresh) => RefreshIndicator(
-              onRefresh: refresh,
-              child: ListView(padding: const EdgeInsets.all(12), children: [PageSummary(page: page), ...page.items.map((b) => BidCard(bid: b))]),
+          child: RefreshIndicator(
+            onRefresh: () => load(reset: true),
+            child: ListView(
+              padding: const EdgeInsets.all(12),
+              children: [
+                if (error != null) ErrorCard(message: error!, onRetry: () => load(reset: true)),
+                if (!loading && error == null && items.isEmpty) const EmptyCard(message: '暂无该地区脚手架中标案例，可调整筛选条件'),
+                ...items.map((b) => BidCard(bid: b, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => BidDetailPage(bid: b))))),
+                if (items.length < total) Padding(padding: const EdgeInsets.symmetric(vertical: 12), child: FilledButton(onPressed: loading ? null : () => load(), child: Text(loading ? '加载中...' : '加载更多'))),
+              ],
             ),
           ),
         ),
@@ -400,10 +459,43 @@ class PriceCard extends StatelessWidget {
 }
 
 class BidCard extends StatelessWidget {
-  const BidCard({super.key, required this.bid});
+  const BidCard({super.key, required this.bid, this.onTap});
+  final ScaffoldBidCase bid;
+  final VoidCallback? onTap;
+  @override
+  Widget build(BuildContext context) => Card(child: ListTile(onTap: onTap, title: Text(bid.projectName), subtitle: Text('${bid.province ?? ''}${bid.city ?? ''} · ${bid.scaffoldType ?? ''} · ${bid.procurementType ?? ''}\n中标：${bid.winner ?? '-'} · 面积：${bid.areaM2?.toStringAsFixed(0) ?? '-'}㎡ · ${fmtDate(bid.publishDate)}'), isThreeLine: true, trailing: Text(bid.bidAmount == null ? '-' : '${(bid.bidAmount! / 10000).toStringAsFixed(1)}万')));
+}
+
+class BidDetailPage extends StatelessWidget {
+  const BidDetailPage({super.key, required this.bid});
   final ScaffoldBidCase bid;
   @override
-  Widget build(BuildContext context) => Card(child: ListTile(title: Text(bid.projectName), subtitle: Text('${bid.province ?? ''}${bid.city ?? ''} · ${bid.scaffoldType ?? ''} · ${bid.procurementType ?? ''}\n中标：${bid.winner ?? '-'} · 面积：${bid.areaM2?.toStringAsFixed(0) ?? '-'}㎡ · ${fmtDate(bid.publishDate)}'), isThreeLine: true, trailing: Text(bid.bidAmount == null ? '-' : '${(bid.bidAmount! / 10000).toStringAsFixed(1)}万')));
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(title: const Text('中标案例详情')),
+        body: ListView(padding: const EdgeInsets.all(16), children: [
+          Text(bid.projectName, style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 12),
+          DetailRow(label: '地区', value: '${bid.province ?? ''}${bid.city ?? ''}'),
+          DetailRow(label: '采购人', value: bid.buyer),
+          DetailRow(label: '中标人', value: bid.winner),
+          DetailRow(label: '金额', value: bid.bidAmount == null ? null : '${(bid.bidAmount! / 10000).toStringAsFixed(2)} 万元'),
+          DetailRow(label: '面积', value: bid.areaM2 == null ? null : '${bid.areaM2!.toStringAsFixed(0)} ㎡'),
+          DetailRow(label: '吨位', value: bid.tonnage == null ? null : '${bid.tonnage!.toStringAsFixed(0)} 吨'),
+          DetailRow(label: '租期', value: bid.rentalDays == null ? null : '${bid.rentalDays} 天'),
+          DetailRow(label: '类型', value: '${bid.scaffoldType ?? '-'} / ${bid.procurementType ?? '-'}'),
+          DetailRow(label: '发布日期', value: fmtDate(bid.publishDate)),
+          DetailRow(label: 'AI 摘要', value: bid.aiSummary ?? bid.serviceScope),
+          SelectableText('来源：${bid.sourceUrl}', style: Theme.of(context).textTheme.bodySmall),
+        ]),
+      );
+}
+
+class DetailRow extends StatelessWidget {
+  const DetailRow({super.key, required this.label, required this.value});
+  final String label;
+  final String? value;
+  @override
+  Widget build(BuildContext context) => Padding(padding: const EdgeInsets.symmetric(vertical: 6), child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [SizedBox(width: 84, child: Text(label, style: const TextStyle(fontWeight: FontWeight.bold))), Expanded(child: SelectableText((value == null || value!.isEmpty) ? '-' : value!))]));
 }
 
 class ReferenceCard extends StatelessWidget {
