@@ -104,6 +104,17 @@ curl -X POST http://127.0.0.1:9000/api/quote/scaffold/calculate \
 
 后端 CORS 已允许本机 Web 调试来源：`http://localhost:3000`、`http://127.0.0.1:3000`、`http://localhost:5173`、`http://127.0.0.1:5173`。
 
+### Flutter UI 验收步骤
+
+```bash
+cd mobile/flutter_app
+flutter analyze
+flutter test
+flutter run -d <android-emulator-id> --dart-define=API_BASE_URL=http://10.0.2.2:9000
+```
+
+移动端中标案例页已改为底部筛选面板，支持清空筛选、下拉刷新、按 `items/total/page/page_size` 加载更多。点击中标案例卡片可进入详情页查看项目、地区、采购人、中标人、金额、面积、吨位、租期、AI 摘要和来源链接。
+
 ## vLLM / aeon-local AI 抽取
 
 配置项：

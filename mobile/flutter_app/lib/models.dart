@@ -114,6 +114,7 @@ class ScaffoldBidCase {
     required this.publishDate,
     required this.reviewStatus,
     required this.serviceScope,
+    required this.aiSummary,
   });
 
   final int id;
@@ -132,6 +133,7 @@ class ScaffoldBidCase {
   final DateTime? publishDate;
   final String reviewStatus;
   final String? serviceScope;
+  final String? aiSummary;
 
   factory ScaffoldBidCase.fromJson(Map<String, dynamic> json) => ScaffoldBidCase(
         id: _asInt(json['id']),
@@ -150,6 +152,7 @@ class ScaffoldBidCase {
         publishDate: _asDate(json['publish_date']),
         reviewStatus: json['review_status']?.toString() ?? '',
         serviceScope: _asString(json['service_scope']),
+        aiSummary: _asString(json['ai_summary']),
       );
 }
 
