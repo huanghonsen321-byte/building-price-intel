@@ -201,3 +201,66 @@ def test_source_level_never_defaults_to_national_for_province_or_city() -> None:
                 "中国招标投标公共服务平台", "中国招标投标网",
                 "央企采购公开公告平台",
             }, f"{s.name} has source_level=national but is not a true national source"
+
+
+# ---------------------------------------------------------------------------
+# Regression: city-level source filter isolation
+# ---------------------------------------------------------------------------
+
+def test_guangdong_city_source_not_visible_in_national_filter() -> None:
+    """A Guangdong city source (e.g. 深圳) must NOT appear in source_level=national."""
+    # Pick a known city source: 深圳公共资源交易平台
+    city_name = "深圳公共资源交易平台"
+    entry = None
+    for s in get_sources():
+        if s.name == city_name:
+            entry = s
+            break
+    assert entry is not None, f"Source '{city_name}' not found"
+    assert entry.source_level == "city"
+    assert entry.parser_status == "not_started"
+    assert entry.province == "广东"
+
+    # It should NOT be in national filter
+    national = get_sources(SourceQuery(source_level="national"))
+    national_names = {s.name for s in national}
+    assert city_name not in national_names, (
+        f"City source '{city_name}' should NOT appear in source_level=national"
+    )
+
+
+def test_guangdong_city_source_visible_in_province_filter() -> None:
+    """A Guangdong city source must appear in province=广东."""
+    city_name = "深圳公共资源交易平台"
+    gd = get_sources(SourceQuery(province="广东"))
+    gd_names = {s.name for s in gd}
+    assert city_name in gd_names, f"City source '{city_name}' should appear in province=广东"
+
+
+def test_guangdong_city_source_excluded_when_parser_ready_combined() -> None:
+    """A not_started Guangdong city source must NOT appear in parser_ready+广东."""
+    city_name = "深圳公共资源交易平台"
+    gd_pr = get_sources(SourceQuery(province="广东", parser_status="parser_ready"))
+    gd_pr_names = {s.name for s in gd_pr}
+    assert city_name not in gd_pr_names, (
+        f"not_started city source '{city_name}' should NOT appear in 广东+parser_ready"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Stats hard-value assertions (regression-proof)
+# ---------------------------------------------------------------------------
+
+def test_stats_hard_values() -> None:
+    """Stats must return exact expected counts."""
+    stats = get_stats()
+    assert stats.total_sources == 76
+    assert stats.national_sources == 7
+    assert stats.guangdong_sources == 26
+    assert stats.parser_ready_sources == 8
+    assert stats.enabled_sources == 9
+    assert stats.guangdong_parser_ready_sources == 3
+    assert stats.province_source_count == 35
+    assert stats.city_source_count == 21
+    assert stats.bid_source_count == 61
+    assert stats.price_source_count == 13
