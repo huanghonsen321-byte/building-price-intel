@@ -1,7 +1,7 @@
 """add notification logs
 
 Revision ID: 202605180003
-Revises: 202605180001
+Revises: 202605180002
 Create Date: 2026-05-18 11:20:00
 """
 from typing import Sequence, Union
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 revision: str = "202605180003"
-down_revision: Union[str, None] = "202605180001"
+down_revision: Union[str, None] = "202605180002"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

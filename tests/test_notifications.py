@@ -1,6 +1,8 @@
 from datetime import date
 from decimal import Decimal
 
+from uuid import uuid4
+
 from app.core.database import SessionLocal
 from app.models.bid import ScaffoldBidCase
 from app.models.notification import NotificationLog
@@ -10,7 +12,8 @@ from app.services.notification_service import alert_for_bid_case, send_daily_bri
 
 def test_send_daily_briefing_uses_mock_sender_and_logs(client):
     with SessionLocal() as db:
-        db.add(PriceDaily(date=date.today(), category="steel", region="广东", city="广州", product_name="盘扣脚手架", spec="48", unit="元/吨", price=Decimal("5200"), change_value=Decimal("80"), source_name="pytest"))
+        source_name = f"pytest-{uuid4().hex}"
+        db.add(PriceDaily(date=date.today(), category="steel", region="广东", city="广州", product_name="盘扣脚手架", spec="48", unit="元/吨", price=Decimal("5200"), change_value=Decimal("80"), source_name=source_name))
         db.commit()
         result = send_daily_briefing(db, channel="mock", target="mock://pytest", regions=["广东"], categories=["steel"])
         assert result.status == "success"
