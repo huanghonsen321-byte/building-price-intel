@@ -179,22 +179,52 @@ class ScaffoldPriceReference {
       );
 }
 
+class ScaffoldQuoteCostBreakdown {
+  const ScaffoldQuoteCostBreakdown({required this.baseRentalFee, required this.setupDismantleFee, required this.transportFee, required this.lossFee, required this.subtotalBeforeTaxProfit, required this.taxFee, required this.profitFee, required this.totalAmount});
+  final double baseRentalFee;
+  final double setupDismantleFee;
+  final double transportFee;
+  final double lossFee;
+  final double subtotalBeforeTaxProfit;
+  final double taxFee;
+  final double profitFee;
+  final double totalAmount;
+  factory ScaffoldQuoteCostBreakdown.fromJson(Map<String, dynamic>? json) => ScaffoldQuoteCostBreakdown(
+        baseRentalFee: _asDouble(json?['base_rental_fee']),
+        setupDismantleFee: _asDouble(json?['setup_dismantle_fee']),
+        transportFee: _asDouble(json?['transport_fee']),
+        lossFee: _asDouble(json?['loss_fee']),
+        subtotalBeforeTaxProfit: _asDouble(json?['subtotal_before_tax_profit']),
+        taxFee: _asDouble(json?['tax_fee']),
+        profitFee: _asDouble(json?['profit_fee']),
+        totalAmount: _asDouble(json?['total_amount']),
+      );
+}
+
 class ScaffoldQuoteResult {
-  const ScaffoldQuoteResult({required this.scaffoldType, required this.region, required this.calculatedUnit, required this.referencePrice, required this.estimatedAmount, required this.confidence, required this.formula, required this.referenceCount});
+  const ScaffoldQuoteResult({required this.scaffoldType, required this.region, required this.pricingMethod, required this.calculatedUnit, required this.referencePrice, required this.estimatedAmount, required this.unitAreaPrice, required this.unitTonDayPrice, required this.costBreakdown, required this.confidence, required this.formula, required this.referenceCount});
   final String scaffoldType;
   final String? region;
+  final String pricingMethod;
   final String calculatedUnit;
   final double referencePrice;
   final double? estimatedAmount;
+  final double? unitAreaPrice;
+  final double? unitTonDayPrice;
+  final ScaffoldQuoteCostBreakdown costBreakdown;
   final String confidence;
   final String formula;
   final int referenceCount;
   factory ScaffoldQuoteResult.fromJson(Map<String, dynamic> json) => ScaffoldQuoteResult(
         scaffoldType: json['scaffold_type']?.toString() ?? '',
         region: _asString(json['region']),
+        pricingMethod: json['pricing_method']?.toString() ?? '',
         calculatedUnit: json['calculated_unit']?.toString() ?? '',
         referencePrice: _asDouble(json['reference_price']),
         estimatedAmount: _asNullableDouble(json['estimated_amount']),
+        unitAreaPrice: _asNullableDouble(json['unit_area_price']),
+        unitTonDayPrice: _asNullableDouble(json['unit_ton_day_price']),
+        costBreakdown: ScaffoldQuoteCostBreakdown.fromJson(json['cost_breakdown'] as Map<String, dynamic>?),
         confidence: json['confidence']?.toString() ?? '',
         formula: json['formula']?.toString() ?? '',
         referenceCount: _asInt(json['reference_count']),
