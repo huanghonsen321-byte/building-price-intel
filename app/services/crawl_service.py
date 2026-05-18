@@ -14,10 +14,21 @@ from app.models.price import PriceDaily
 from app.services.bid_service import create_or_update_case_from_extraction
 
 
+def _amount_to_decimal(value: str | None, unit: str | None) -> Decimal | None:
+    if not value:
+        return None
+    amount = Decimal(value.replace(",", "").replace("，", ""))
+    if unit == "亿元":
+        amount *= Decimal("100000000")
+    elif unit == "万元":
+        amount *= Decimal("10000")
+    return amount.quantize(Decimal("0.01"))
+
+
 def _simple_extract(text: str, title: str, publish_date) -> dict:
-    amount_match = re.search(r"(?:中标金额|成交金额)：?([0-9.]+)元", text)
-    area_match = re.search(r"(?:面积|脚手架面积)([0-9.]+)平方米", text)
-    days_match = re.search(r"(?:服务期：?([0-9]+)天|租期：?([0-9]+)个月)", text)
+    amount_match = re.search(r"(?:中标金额|成交金额|合同金额|投标报价)[：:]?\s*(?:人民币)?\s*([0-9.,，]+)\s*(亿元|万元|元)?", text)
+    area_match = re.search(r"(?:工程量[：:]?\s*)?(?:脚手架)?(?:工程面积|建筑面积|面积)约?\s*([0-9.,，]+)\s*(?:平方米|㎡|m2)", text)
+    days_match = re.search(r"(?:服务期|租期|工期)[：:]?\s*(?:约)?\s*(?:为)?\s*([0-9]+)\s*天|(?:服务期|租期|工期)[：:]?\s*(?:约)?\s*(?:为)?\s*([0-9]+)\s*个月", text)
     months = None
     if days_match and days_match.group(2):
         months = int(days_match.group(2))
@@ -35,14 +46,14 @@ def _simple_extract(text: str, title: str, publish_date) -> dict:
         "buyer": _between(text, "采购人：", "。"),
         "agency": _between(text, "代理机构：", "。"),
         "winner": _between(text, "中标人：", "。") or _between(text, "成交单位：", "。"),
-        "bid_amount": Decimal(amount_match.group(1)) if amount_match else None,
+        "bid_amount": _amount_to_decimal(amount_match.group(1), amount_match.group(2) or "元") if amount_match else None,
         "publish_date": publish_date.isoformat() if publish_date else None,
         "scaffold_type": scaffold_type,
         "procurement_type": "租赁" if "租赁" in text else "专业分包",
         "service_scope": _between(text, "服务范围：", "。") or _between(text, "服务内容：", "。"),
         "duration_text": days_match.group(0) if days_match else None,
         "quantity_text": area_match.group(0) if area_match else None,
-        "area_m2": Decimal(area_match.group(1)) if area_match else None,
+        "area_m2": Decimal(area_match.group(1).replace(",", "").replace("，", "")) if area_match else None,
         "tonnage": None,
         "rental_days": days,
         "pricing_method": "总价折算",

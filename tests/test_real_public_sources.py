@@ -75,3 +75,27 @@ def test_run_public_crawl_saves_real_public_prices_and_bid_docs() -> None:
         source_types = set(db.scalars(select(CrawlSource.source_type)).all())
         assert "real_public_price" in source_types
         assert "real_public_bid" in source_types
+
+
+def test_run_public_crawl_parses_ten_thousand_yuan_and_approx_area() -> None:
+    bid_html = """
+    <html><body>
+    <a href="/cggg/dfgg/zbgg/202605/t20260518_002.htm">广东省深圳市学校项目盘扣式脚手架租赁服务中标公告</a>
+    <p>采购人：深圳市教育建设有限公司。中标人：深圳市周转材料有限公司。
+    中标金额：人民币 386.5 万元。工程面积约 52,000 平方米，租期约为 180 天。发布时间：2026-05-18。</p>
+    </body></html>
+    """
+
+    with SessionLocal() as db:
+        task = run_public_crawl(db, keyword="脚手架", price_html="<html></html>", bid_html=bid_html)
+        assert task.status == "success"
+
+        raw = db.scalar(select(BidRawDocument).where(BidRawDocument.source_url.like("%t20260518_002%")))
+        assert raw is not None
+        case = raw.bid_case
+        assert case is not None
+        assert case.bid_amount == Decimal("3865000.00")
+        assert case.area_m2 == Decimal("52000.00")
+        assert case.rental_days == 180
+        assert case.price_references
+        assert case.price_references[0].calculated_price == Decimal("74.33")
