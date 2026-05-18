@@ -148,6 +148,50 @@ def ensure_review_task_for_case(
     return task
 
 
+def backfill_review_tasks_for_pending_cases(
+    db: Session,
+    confidence_threshold: float | Decimal = Decimal("0.70"),
+) -> dict[str, int]:
+    """Create missing pending review tasks for historical pending/low-confidence cases.
+
+    Only qualifying cases are counted as scanned. Cases already represented by a
+    pending ReviewTask are skipped so repeated backfills stay idempotent.
+    """
+    threshold = Decimal(str(confidence_threshold))
+    cases = list(
+        db.scalars(
+            select(ScaffoldBidCase)
+            .where(
+                or_(
+                    ScaffoldBidCase.review_status == "pending",
+                    ScaffoldBidCase.extraction_confidence < threshold,
+                )
+            )
+            .order_by(ScaffoldBidCase.id.asc())
+        )
+    )
+
+    created = 0
+    skipped = 0
+    for case in cases:
+        existing = db.scalar(select(ReviewTask).where(ReviewTask.case_id == case.id, ReviewTask.status == "pending"))
+        if existing is not None:
+            skipped += 1
+            continue
+        db.add(
+            ReviewTask(
+                case_id=case.id,
+                status="pending",
+                reviewer_note="historical pending/low-confidence case backfill; needs manual review",
+            )
+        )
+        created += 1
+
+    if created:
+        db.flush()
+    return {"scanned": len(cases), "created": created, "skipped": skipped}
+
+
 def create_or_update_case_from_extraction(
     db: Session,
     extraction: dict[str, Any],

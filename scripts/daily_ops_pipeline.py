@@ -33,6 +33,7 @@ from app.models.bid import ScaffoldBidCase  # noqa: E402
 from app.models.crawl import BidRawDocument  # noqa: E402
 from app.models.review import ReviewTask  # noqa: E402
 from app.services.ai_extraction_service import extract_pending_bid_documents  # noqa: E402
+from app.services.bid_service import backfill_review_tasks_for_pending_cases  # noqa: E402
 from app.services.crawl_service import run_public_crawl  # noqa: E402
 from app.services.notification_service import alert_for_bid_case, send_daily_briefing  # noqa: E402
 from app.services.price_summary_service import generate_today_price_summary  # noqa: E402
@@ -121,7 +122,7 @@ def _collect_observability(db) -> dict:
     }
 
 
-def run_pipeline(use_vllm: bool = True, pending_limit: int = 50) -> dict:
+def run_pipeline(use_vllm: bool = True, pending_limit: int = 50, run_review_task_backfill: bool = True) -> dict:
     started_at = datetime.now(UTC)
     keywords = _csv_env("DAILY_CRAWL_KEYWORDS", "脚手架,盘扣脚手架,钢材,废钢")
     briefing_regions = _csv_env("DAILY_BRIEFING_REGIONS", "广东,华北,内蒙古")
@@ -144,6 +145,7 @@ def run_pipeline(use_vllm: bool = True, pending_limit: int = 50) -> dict:
         "alert_skipped": 0,
         "summary": None,
         "briefing_status": None,
+        "review_task_backfill": None,
         "errors": [],
     }
 
@@ -219,6 +221,16 @@ def run_pipeline(use_vllm: bool = True, pending_limit: int = 50) -> dict:
             else:
                 report["errors"].append(f"alert send failed for case {case.id}: {result.error_message}")
 
+        if run_review_task_backfill:
+            try:
+                report["review_task_backfill"] = backfill_review_tasks_for_pending_cases(db)
+                db.commit()
+            except Exception as exc:
+                db.rollback()
+                report["review_task_backfill"] = {"ok": False, "error": str(exc)}
+        else:
+            report["review_task_backfill"] = {"ok": True, "skipped": True}
+
         report.update(_collect_observability(db))
 
     report["finished_at"] = datetime.now(UTC).isoformat()
@@ -230,10 +242,15 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--no-vllm", action="store_true", help="force offline rule-based extraction fallback")
     parser.add_argument("--pending-limit", type=int, default=50)
+    parser.add_argument("--skip-review-task-backfill", action="store_true", help="skip historical pending review task backfill")
     parser.add_argument("--json", action="store_true", help="print compact JSON only")
     args = parser.parse_args()
 
-    report = run_pipeline(use_vllm=not args.no_vllm, pending_limit=args.pending_limit)
+    report = run_pipeline(
+        use_vllm=not args.no_vllm,
+        pending_limit=args.pending_limit,
+        run_review_task_backfill=not args.skip_review_task_backfill,
+    )
     if args.json:
         print(json.dumps(report, ensure_ascii=False, default=str))
     else:
