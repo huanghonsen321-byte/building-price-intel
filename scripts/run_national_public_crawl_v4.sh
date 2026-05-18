@@ -6,9 +6,16 @@
 
 set -euo pipefail
 
-REPO_DIR="${BUILDING_PRICE_INTEL_DIR:-/home/huanghonsen/building-price-intel}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_DIR="${BUILDING_PRICE_INTEL_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
 CONFIG_FILE="${NATIONAL_CRAWL_CONFIG:-$REPO_DIR/app/crawlers/config/sources_national_v4.json}"
-PYTHON_BIN="${BUILDING_PRICE_INTEL_PYTHON:-/home/huanghonsen/projects/construction-price-app/building-price-intel/.venv/bin/python}"
+if [[ -n "${BUILDING_PRICE_INTEL_PYTHON:-}" ]]; then
+  PYTHON_BIN="$BUILDING_PRICE_INTEL_PYTHON"
+elif [[ -x "$REPO_DIR/.venv/bin/python" ]]; then
+  PYTHON_BIN="$REPO_DIR/.venv/bin/python"
+else
+  PYTHON_BIN="${PYTHON:-python3}"
+fi
 MODE="dry-run"
 MAX_KEYWORDS=""
 NO_VLLM="--no-vllm"
