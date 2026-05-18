@@ -8,7 +8,9 @@ from app.models.bid import ScaffoldBidCase, ScaffoldPriceReference
 
 def test_quote_area_unit(client) -> None:
     client.post("/api/crawl/run", json={"keyword": "脚手架"})
-    response = client.post("/api/quote/scaffold/calculate", json={"scaffold_type": "盘扣", "area_m2": 1000})
+    response = client.post(
+        "/api/quote/scaffold/calculate", json={"scaffold_type": "盘扣", "area_m2": 1000}
+    )
     assert response.status_code == 200
     data = response.json()
     assert data["reference_count"] >= 1
@@ -18,7 +20,9 @@ def test_quote_area_unit(client) -> None:
 
 def test_quote_missing_required_fields_returns_null_estimate(client) -> None:
     client.post("/api/crawl/run", json={"keyword": "脚手架"})
-    response = client.post("/api/quote/scaffold/calculate", json={"scaffold_type": "盘扣"})
+    response = client.post(
+        "/api/quote/scaffold/calculate", json={"scaffold_type": "盘扣"}
+    )
     assert response.status_code == 200
     data = response.json()
     if data["calculated_unit"] == "元/㎡":
@@ -59,10 +63,70 @@ def test_quote_ton_day_unit(client) -> None:
 
     response = client.post(
         "/api/quote/scaffold/calculate",
-        json={"scaffold_type": scaffold_type, "region": "测试市", "tonnage": 10, "rental_days": 30},
+        json={
+            "scaffold_type": scaffold_type,
+            "region": "测试市",
+            "tonnage": 10,
+            "rental_days": 30,
+        },
     )
     assert response.status_code == 200
     data = response.json()
     assert data["calculated_unit"] == "元/吨/天"
     assert data["estimated_amount"] == "2550.00"
     assert "tonnage" not in data["formula"]
+
+
+def test_quote_filters_references_by_requested_unit(client) -> None:
+    suffix = uuid4().hex
+    scaffold_type = f"混合单位脚手架-{suffix}"
+    with SessionLocal() as db:
+        case = ScaffoldBidCase(
+            project_name=f"混合单位项目-{suffix}",
+            province="测试省",
+            city="测试市",
+            scaffold_type=scaffold_type,
+            procurement_type="租赁",
+            source_url=f"https://example.test/mixed-unit-bids/{suffix}",
+            publish_date=date.today(),
+            extraction_confidence=Decimal("0.9"),
+            review_status="pending",
+        )
+        db.add(case)
+        db.flush()
+        db.add_all(
+            [
+                ScaffoldPriceReference(
+                    bid_case_id=case.id,
+                    price_type="manual_area_test",
+                    scaffold_type=scaffold_type,
+                    region="测试市",
+                    calculated_unit="元/㎡",
+                    calculated_price=Decimal("60.00"),
+                    formula="manual area test",
+                    confidence="high",
+                ),
+                ScaffoldPriceReference(
+                    bid_case_id=case.id,
+                    price_type="manual_month_test",
+                    scaffold_type=scaffold_type,
+                    region="测试市",
+                    calculated_unit="元/月",
+                    calculated_price=Decimal("900000.00"),
+                    formula="manual month test",
+                    confidence="high",
+                ),
+            ]
+        )
+        db.commit()
+
+    response = client.post(
+        "/api/quote/scaffold/calculate",
+        json={"scaffold_type": scaffold_type, "region": "测试市", "area_m2": 100},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["calculated_unit"] == "元/㎡"
+    assert data["reference_price"] == "60.00"
+    assert data["estimated_amount"] == "6000.00"
+    assert data["reference_count"] == 1

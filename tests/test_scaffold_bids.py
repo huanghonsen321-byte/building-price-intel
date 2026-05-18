@@ -48,3 +48,15 @@ def test_scaffold_price_references_list_uses_page_contract(client) -> None:
     assert data["total"] >= 1
     assert data["page"] == 1
     assert data["page_size"] == 10
+
+
+def test_scaffold_bid_review_rejects_invalid_status(client) -> None:
+    _ensure_crawl_data(client)
+    bids_response = client.get("/api/scaffold/bids?page=1&page_size=1")
+    case_id = bids_response.json()["items"][0]["id"]
+
+    response = client.post(
+        f"/api/scaffold/bids/{case_id}/review", json={"status": "approvedd"}
+    )
+
+    assert response.status_code == 422

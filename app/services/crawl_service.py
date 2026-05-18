@@ -18,9 +18,19 @@ def _simple_extract(text: str, title: str, publish_date) -> dict:
     months = None
     if days_match and days_match.group(2):
         months = int(days_match.group(2))
-    days = int(days_match.group(1)) if days_match and days_match.group(1) else (months * 30 if months else None)
-    scaffold_type = "盘扣" if "盘扣" in text else "扣件式钢管脚手架" if "钢管" in text or "扣件式" in text else "脚手架"
-    city = "乌兰察布" if "乌兰察布" in text else "呼和浩特" if "呼和浩特" in text else None
+    days = (
+        int(days_match.group(1))
+        if days_match and days_match.group(1)
+        else (months * 30 if months else None)
+    )
+    scaffold_type = (
+        "盘扣"
+        if "盘扣" in text
+        else "扣件式钢管脚手架" if "钢管" in text or "扣件式" in text else "脚手架"
+    )
+    city = (
+        "乌兰察布" if "乌兰察布" in text else "呼和浩特" if "呼和浩特" in text else None
+    )
     return {
         "is_scaffold_related": True,
         "announcement_type": "中标公告" if "中标" in title else "成交公告",
@@ -30,12 +40,14 @@ def _simple_extract(text: str, title: str, publish_date) -> dict:
         "district": None,
         "buyer": _between(text, "采购人：", "。"),
         "agency": _between(text, "代理机构：", "。"),
-        "winner": _between(text, "中标人：", "。") or _between(text, "成交单位：", "。"),
+        "winner": _between(text, "中标人：", "。")
+        or _between(text, "成交单位：", "。"),
         "bid_amount": Decimal(amount_match.group(1)) if amount_match else None,
         "publish_date": publish_date.isoformat() if publish_date else None,
         "scaffold_type": scaffold_type,
         "procurement_type": "租赁" if "租赁" in text else "专业分包",
-        "service_scope": _between(text, "服务范围：", "。") or _between(text, "服务内容：", "。"),
+        "service_scope": _between(text, "服务范围：", "。")
+        or _between(text, "服务内容：", "。"),
         "duration_text": days_match.group(0) if days_match else None,
         "quantity_text": area_match.group(0) if area_match else None,
         "area_m2": Decimal(area_match.group(1)) if area_match else None,
@@ -58,21 +70,40 @@ def _between(text: str, start: str, end: str) -> str | None:
 
 def run_mock_crawl(db: Session, keyword: str) -> CrawlTask:
     crawler = MockPublicBidCrawler()
-    source = db.scalar(select(CrawlSource).where(CrawlSource.name == crawler.source_name))
+    source = db.scalar(
+        select(CrawlSource).where(CrawlSource.name == crawler.source_name)
+    )
     if source is None:
-        source = CrawlSource(name=crawler.source_name, base_url=crawler.base_url, source_type="mock_public_bid", enabled=True)
+        source = CrawlSource(
+            name=crawler.source_name,
+            base_url=crawler.base_url,
+            source_type="mock_public_bid",
+            enabled=True,
+        )
         db.add(source)
         db.flush()
 
-    task = CrawlTask(source_id=source.id, keyword=keyword, status="running", started_at=datetime.now(UTC))
+    task = CrawlTask(
+        source_id=source.id,
+        keyword=keyword,
+        status="running",
+        started_at=datetime.now(UTC),
+    )
     db.add(task)
-    db.flush()
+    db.commit()
+    db.refresh(task)
+
+    task_id = task.id
     try:
         docs = crawler.search(keyword)
         saved = 0
         for doc in docs:
             content_hash = hashlib.sha256(doc.text_content.encode("utf-8")).hexdigest()
-            raw = db.scalar(select(BidRawDocument).where(BidRawDocument.content_hash == content_hash))
+            raw = db.scalar(
+                select(BidRawDocument).where(
+                    BidRawDocument.content_hash == content_hash
+                )
+            )
             if raw is None:
                 raw = BidRawDocument(
                     source_name=doc.source_name,
@@ -89,17 +120,24 @@ def run_mock_crawl(db: Session, keyword: str) -> CrawlTask:
                 db.flush()
                 saved += 1
             extraction = _simple_extract(doc.text_content, doc.title, doc.publish_date)
-            create_or_update_case_from_extraction(db, extraction, source_url=doc.source_url, raw_document_id=raw.id)
+            create_or_update_case_from_extraction(
+                db, extraction, source_url=doc.source_url, raw_document_id=raw.id
+            )
         task.status = "success"
         task.total_found = len(docs)
         task.total_saved = saved
-    except Exception as exc:
-        task.status = "failed"
-        task.error_message = str(exc)
-    finally:
         task.finished_at = datetime.now(UTC)
         db.commit()
-        db.refresh(task)
+    except Exception as exc:
+        db.rollback()
+        task = db.get(CrawlTask, task_id)
+        if task is None:
+            raise
+        task.status = "failed"
+        task.error_message = str(exc)
+        task.finished_at = datetime.now(UTC)
+        db.commit()
+    db.refresh(task)
     return task
 
 
