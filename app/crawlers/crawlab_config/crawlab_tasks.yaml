@@ -1,0 +1,16 @@
+tasks:
+  - name: scrapy-price-crawler
+    type: scrapy
+    path: app/crawlers/scrapy_spiders/price_crawler
+    command: scrapy crawl public_prices
+    schedule: "0 */6 * * *"
+  - name: crawlee-public-crawler
+    type: python
+    path: app/crawlers/crawlee_spiders
+    command: python run_crawlee.py --start-url https://www.100ppi.com/price/
+    schedule: "30 */6 * * *"
+  - name: pyspider-public-bid-crawler
+    type: pyspider
+    path: app/crawlers/pyspider
+    command: pyspider -c config.json
+    schedule: manual
