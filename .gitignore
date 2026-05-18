@@ -9,3 +9,6 @@ __pycache__/
 local_test.db
 htmlcov/
 .coverage
+app/crawlers/output/*.json
+app/crawlers/logs/*
+!app/crawlers/logs/.gitkeep
