@@ -2,6 +2,11 @@
 set -euo pipefail
 
 REPO_DIR="${BUILDING_PRICE_INTEL_DIR:-/home/huanghonsen/building-price-intel}"
+if [ -f "$REPO_DIR/.env" ]; then
+  set -a
+  . "$REPO_DIR/.env"
+  set +a
+fi
 PYTHON_BIN="${BUILDING_PRICE_INTEL_PYTHON:-/home/huanghonsen/projects/construction-price-app/building-price-intel/.venv/bin/python}"
 DB_PATH="${BUILDING_PRICE_INTEL_DB:-$REPO_DIR/local_prod.db}"
 export DATABASE_URL="${DATABASE_URL:-sqlite+pysqlite:///$DB_PATH}"
