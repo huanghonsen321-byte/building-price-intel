@@ -4,7 +4,13 @@ from decimal import Decimal
 from sqlalchemy import select
 
 from app.core.database import SessionLocal
-from app.crawlers.real_public_sources import BusinessSocietyPriceCrawler, ChinaGovernmentProcurementCrawler
+from app.crawlers.real_public_sources import (
+    BusinessSocietyPriceCrawler,
+    ChinaGovernmentProcurementCrawler,
+    GuangdongGovernmentProcurementSmartCloudCrawler,
+    GuangdongPublicResourceTradingCrawler,
+    GuangzhouPublicResourceTradingCrawler,
+)
 from app.models.crawl import BidRawDocument, CrawlSource
 from app.models.price import PriceDaily
 from app.services.crawl_service import run_public_crawl
@@ -25,6 +31,36 @@ BID_HTML = """
 <a href="/cggg/dfgg/zbgg/202605/t20260518_001.htm">广东省深圳市医院项目盘扣式脚手架租赁服务中标公告</a>
 <p>采购人：深圳市建设发展有限公司。中标人：深圳市安建周转材料有限公司。中标金额：3200000元。
 工程量：脚手架面积50000平方米。服务期：200天。发布时间：2026-05-18。</p>
+</body></html>
+"""
+
+GUANGDONG_PUBLIC_RESOURCE_HTML = """
+<html><body>
+<div class="notice-item">
+<a href="/ggzy-portal/#/44/jygg/details?id=gd001">佛山市顺德区学校盘扣式脚手架租赁项目中标候选人公示</a>
+<span>交易类型：工程建设</span><span>发布日期：2026-05-17</span>
+<p>广东省佛山市，采购脚手架、周转材料租赁服务，中标金额：218.6万元。</p>
+</div>
+</body></html>
+"""
+
+GUANGDONG_SMART_CLOUD_HTML = """
+<html><body>
+<ul>
+<li>
+<a href="/freecms/site/gd/ggxx/info/2026/8a7ebe001.htm">广州市番禺区市政维护项目扣件式钢管脚手架采购成交公告</a>
+<div>广东政府采购智慧云平台 发布时间：2026年05月16日 成交金额：96.2万元。</div>
+</li>
+</ul>
+</body></html>
+"""
+
+GUANGZHOU_PUBLIC_RESOURCE_HTML = """
+<html><body>
+<table>
+<tr><td><a href="/jyxx/jsgcZbgg/100001.jhtml">广州南沙综合楼盘扣脚手架专业分包中标结果公告</a></td><td>2026/05/15</td></tr>
+<tr><td colspan="2">地点：广州市南沙区。中标价：3880000元。服务内容：模板脚手架工程。</td></tr>
+</table>
 </body></html>
 """
 
@@ -55,6 +91,48 @@ def test_china_government_procurement_parser_extracts_bid_documents() -> None:
     assert "盘扣式脚手架租赁" in doc.title
     assert doc.publish_date == date(2026, 5, 18)
     assert "中标金额：3200000元" in doc.text_content
+
+
+def test_guangdong_public_resource_trading_parser_extracts_bid_documents() -> None:
+    crawler = GuangdongPublicResourceTradingCrawler()
+    docs = crawler.parse_search_results(GUANGDONG_PUBLIC_RESOURCE_HTML, keyword="脚手架")
+
+    assert len(docs) == 1
+    doc = docs[0]
+    assert doc.source_name == "广东省公共资源交易平台"
+    assert doc.source_url.startswith("https://ygp.gdzwfw.gov.cn")
+    assert "盘扣式脚手架租赁" in doc.title
+    assert doc.publish_date == date(2026, 5, 17)
+    assert doc.region == "广东"
+    assert "218.6万元" in doc.text_content
+
+
+def test_guangdong_smart_cloud_parser_extracts_government_procurement_documents() -> None:
+    crawler = GuangdongGovernmentProcurementSmartCloudCrawler()
+    docs = crawler.parse_search_results(GUANGDONG_SMART_CLOUD_HTML, keyword="脚手架")
+
+    assert len(docs) == 1
+    doc = docs[0]
+    assert doc.source_name == "广东政府采购智慧云平台"
+    assert doc.source_url.startswith("https://gdgpo.czt.gd.gov.cn")
+    assert "扣件式钢管脚手架" in doc.title
+    assert doc.publish_date == date(2026, 5, 16)
+    assert doc.region == "广东"
+    assert "96.2万元" in doc.text_content
+
+
+def test_guangzhou_public_resource_trading_parser_extracts_bid_documents() -> None:
+    crawler = GuangzhouPublicResourceTradingCrawler()
+    docs = crawler.parse_search_results(GUANGZHOU_PUBLIC_RESOURCE_HTML, keyword="脚手架")
+
+    assert len(docs) == 1
+    doc = docs[0]
+    assert doc.source_name == "广州公共资源交易平台"
+    assert doc.source_url.startswith("https://www.gzggzy.cn")
+    assert "盘扣脚手架专业分包" in doc.title
+    assert doc.publish_date == date(2026, 5, 15)
+    assert doc.region == "广东"
+    assert "3880000元" in doc.text_content
 
 
 def test_run_public_crawl_saves_real_public_prices_and_bid_docs() -> None:

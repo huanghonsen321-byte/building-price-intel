@@ -1,5 +1,8 @@
 import hashlib
+import json
+import os
 import re
+import time
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -8,11 +11,88 @@ from sqlalchemy.orm import Session
 
 from app.crawlers.base import RawBidDocument
 from app.crawlers.mock_public_bid_crawler import MockPublicBidCrawler
-from app.crawlers.real_public_sources import BusinessSocietyPriceCrawler, ChinaGovernmentProcurementCrawler, PublicPriceRow
+from app.crawlers.real_public_sources import (
+    BusinessSocietyPriceCrawler,
+    ChinaGovernmentProcurementCrawler,
+    GuangdongGovernmentProcurementSmartCloudCrawler,
+    GuangdongPublicResourceTradingCrawler,
+    GuangzhouPublicResourceTradingCrawler,
+    PublicPriceRow,
+)
 from app.models.crawl import BidRawDocument, CrawlSource, CrawlTask
 from app.models.price import PriceDaily
+from app.models.review import ReviewTask
 from app.services.bid_service import create_or_update_case_from_extraction
 
+
+
+BID_CRAWLER_REGISTRY = {
+    "ChinaGovernmentProcurementCrawler": ChinaGovernmentProcurementCrawler,
+    "GuangdongPublicResourceTradingCrawler": GuangdongPublicResourceTradingCrawler,
+    "GuangdongGovernmentProcurementSmartCloudCrawler": GuangdongGovernmentProcurementSmartCloudCrawler,
+    "GuangzhouPublicResourceTradingCrawler": GuangzhouPublicResourceTradingCrawler,
+}
+
+DEFAULT_BID_SOURCE_CONFIGS = [
+    {
+        "name": "中国政府采购网",
+        "url": ChinaGovernmentProcurementCrawler.base_url,
+        "source_type": "real_public_bid",
+        "parser_name": "ChinaGovernmentProcurementCrawler",
+        "enabled": True,
+    }
+]
+
+
+def _configured_source_configs_from_env() -> list[dict] | None:
+    raw = os.getenv("DAILY_CRAWL_SOURCE_CONFIG_JSON", "").strip()
+    if not raw:
+        return None
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    return None
+
+
+def _enabled_bid_source_configs(source_configs: list[dict] | None, include_default_sources: bool) -> list[dict]:
+    configs = list(source_configs) if source_configs is not None else []
+    if not configs and include_default_sources:
+        configs = list(DEFAULT_BID_SOURCE_CONFIGS)
+    return [
+        config
+        for config in configs
+        if config.get("enabled", True) is True
+        and (
+            config.get("source_type") in {"bid", "real_public_bid"}
+            or config.get("type") in {"httpx_html", "planned_public_adapter"}
+        )
+        and config.get("parser_name")
+    ]
+
+
+def _ensure_pending_review_task(db: Session, case_id: int, note: str) -> None:
+    existing = db.scalar(select(ReviewTask).where(ReviewTask.case_id == case_id, ReviewTask.status == "pending"))
+    if existing is None:
+        db.add(ReviewTask(case_id=case_id, status="pending", reviewer_note=note))
+
+
+def _save_bid_docs_with_cases(db: Session, docs: list[RawBidDocument]) -> int:
+    saved = 0
+    for doc in docs:
+        raw, is_new = _save_bid_document(db, doc)
+        saved += int(is_new)
+        extraction = _simple_extract(doc.text_content, doc.title, doc.publish_date)
+        case = create_or_update_case_from_extraction(db, extraction, source_url=doc.source_url, raw_document_id=raw.id)
+        if case.review_status == "pending" or case.extraction_confidence < Decimal("0.70"):
+            _ensure_pending_review_task(
+                db,
+                case.id,
+                f"规则抽取置信度 {case.extraction_confidence}，请复核广东/公开公告关键字段。",
+            )
+    return saved
 
 def _amount_to_decimal(value: str | None, unit: str | None) -> Decimal | None:
     if not value:
@@ -34,8 +114,10 @@ def _simple_extract(text: str, title: str, publish_date) -> dict:
         months = int(days_match.group(2))
     days = int(days_match.group(1)) if days_match and days_match.group(1) else (months * 30 if months else None)
     scaffold_type = "盘扣" if "盘扣" in text else "扣件式钢管脚手架" if "钢管" in text or "扣件式" in text else "脚手架"
-    city = "深圳" if "深圳" in text else "乌兰察布" if "乌兰察布" in text else "呼和浩特" if "呼和浩特" in text else None
-    province = "广东" if city == "深圳" or "广东" in text else "内蒙古" if city in {"乌兰察布", "呼和浩特"} or "内蒙古" in text else None
+    city = (
+        "广州" if "广州" in text else "深圳" if "深圳" in text else "佛山" if "佛山" in text else "东莞" if "东莞" in text else "中山" if "中山" in text else "珠海" if "珠海" in text else "惠州" if "惠州" in text else "江门" if "江门" in text else "肇庆" if "肇庆" in text else "乌兰察布" if "乌兰察布" in text else "呼和浩特" if "呼和浩特" in text else None
+    )
+    province = "广东" if city in {"广州", "深圳", "佛山", "东莞", "中山", "珠海", "惠州", "江门", "肇庆"} or "广东" in text else "内蒙古" if city in {"乌兰察布", "呼和浩特"} or "内蒙古" in text else None
     return {
         "is_scaffold_related": True,
         "announcement_type": "中标公告" if "中标" in title else "成交公告",
@@ -159,12 +241,7 @@ def run_mock_crawl(db: Session, keyword: str) -> CrawlTask:
     db.flush()
     try:
         docs = crawler.search(keyword)
-        saved = 0
-        for doc in docs:
-            raw, is_new = _save_bid_document(db, doc)
-            saved += int(is_new)
-            extraction = _simple_extract(doc.text_content, doc.title, doc.publish_date)
-            create_or_update_case_from_extraction(db, extraction, source_url=doc.source_url, raw_document_id=raw.id)
+        saved = _save_bid_docs_with_cases(db, docs)
         task.status = "success"
         task.total_found = len(docs)
         task.total_saved = saved
@@ -178,35 +255,68 @@ def run_mock_crawl(db: Session, keyword: str) -> CrawlTask:
     return task
 
 
-def run_public_crawl(db: Session, keyword: str, price_html: str | None = None, bid_html: str | None = None) -> CrawlTask:
+def run_public_crawl(
+    db: Session,
+    keyword: str,
+    price_html: str | None = None,
+    bid_html: str | None = None,
+    source_configs: list[dict] | None = None,
+    bid_html_by_parser: dict[str, str] | None = None,
+    include_default_sources: bool = True,
+) -> CrawlTask:
     price_crawler = BusinessSocietyPriceCrawler()
-    bid_crawler = ChinaGovernmentProcurementCrawler()
+    env_configs = _configured_source_configs_from_env()
+    active_source_configs = _enabled_bid_source_configs(source_configs if source_configs is not None else env_configs, include_default_sources)
     price_source = _get_or_create_source(db, name=price_crawler.source_name, base_url=price_crawler.base_url, source_type="real_public_price")
-    _get_or_create_source(db, name=bid_crawler.source_name, base_url=bid_crawler.base_url, source_type="real_public_bid")
+    for config in active_source_configs:
+        parser_name = str(config.get("parser_name"))
+        crawler_cls = BID_CRAWLER_REGISTRY.get(parser_name)
+        if crawler_cls is not None:
+            _get_or_create_source(db, name=config.get("name") or crawler_cls.source_name, base_url=config.get("url") or crawler_cls.base_url, source_type=config.get("source_type") or "bid")
     task = CrawlTask(source_id=price_source.id, keyword=keyword, status="running", started_at=datetime.now(UTC))
     db.add(task)
     db.flush()
     try:
         if price_html is not None:
             price_rows = price_crawler.parse_prices(price_html, source_url=f"{price_crawler.base_url}/example.html")
+        elif active_source_configs or not include_default_sources:
+            price_rows = []
         else:
             price_rows = price_crawler.fetch_prices()
-        if bid_html is not None:
-            docs = bid_crawler.parse_search_results(bid_html, keyword=keyword, base_url=bid_crawler.base_url)
-        else:
-            docs = bid_crawler.search(keyword)
+
+        all_docs: list[RawBidDocument] = []
+        errors: list[str] = []
+        for config in active_source_configs:
+            parser_name = str(config.get("parser_name"))
+            crawler_cls = BID_CRAWLER_REGISTRY.get(parser_name)
+            if crawler_cls is None:
+                errors.append(f"unknown parser_name={parser_name}")
+                continue
+            crawler = crawler_cls()
+            if bid_html_by_parser and parser_name in bid_html_by_parser:
+                docs = crawler.parse_search_results(bid_html_by_parser[parser_name], keyword=keyword, base_url=config.get("url") or crawler.base_url)
+            elif bid_html is not None and parser_name == "ChinaGovernmentProcurementCrawler":
+                docs = crawler.parse_search_results(bid_html, keyword=keyword, base_url=config.get("url") or crawler.base_url)
+            else:
+                try:
+                    docs = crawler.search(keyword)
+                except Exception as exc:
+                    errors.append(f"{config.get('name') or parser_name}: {exc}")
+                    continue
+            all_docs.extend(docs)
+            delay = float(os.getenv("DAILY_CRAWL_REQUEST_DELAY_SECONDS", "0") or 0)
+            if delay > 0:
+                time.sleep(delay)
 
         saved = 0
         for row in price_rows:
             saved += int(_save_price_row(db, row))
-        for doc in docs:
-            raw, is_new = _save_bid_document(db, doc)
-            saved += int(is_new)
-            extraction = _simple_extract(doc.text_content, doc.title, doc.publish_date)
-            create_or_update_case_from_extraction(db, extraction, source_url=doc.source_url, raw_document_id=raw.id)
-        task.status = "success"
-        task.total_found = len(price_rows) + len(docs)
+        saved += _save_bid_docs_with_cases(db, all_docs)
+        task.status = "success" if all_docs or price_rows or not errors else "failed"
+        task.total_found = len(price_rows) + len(all_docs)
         task.total_saved = saved
+        if errors:
+            task.error_message = "; ".join(errors)[:2000]
     except Exception as exc:
         task.status = "failed"
         task.error_message = str(exc)

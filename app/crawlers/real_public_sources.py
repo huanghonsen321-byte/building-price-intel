@@ -135,6 +135,100 @@ class ChinaGovernmentProcurementCrawler(PublicBidCrawler):
         return _dedupe_docs(docs)
 
 
+class GuangdongPublicResourceTradingCrawler(PublicBidCrawler):
+    """Parser/fetcher for 广东省公共资源交易平台 tender notices."""
+
+    source_name = "广东省公共资源交易平台"
+    base_url = "https://ygp.gdzwfw.gov.cn"
+
+    def search(self, keyword: str) -> list[RawBidDocument]:
+        with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
+            response = client.get(self.base_url)
+            response.raise_for_status()
+            return self.parse_search_results(response.text, keyword=keyword, base_url=str(response.url))
+
+    def parse_search_results(self, html: str, keyword: str, base_url: str | None = None) -> list[RawBidDocument]:
+        return _parse_public_bid_links(
+            html,
+            keyword=keyword,
+            source_name=self.source_name,
+            base_url=base_url or self.base_url,
+        )
+
+
+class GuangdongGovernmentProcurementSmartCloudCrawler(PublicBidCrawler):
+    """Parser/fetcher for 广东政府采购智慧云平台 procurement notices."""
+
+    source_name = "广东政府采购智慧云平台"
+    base_url = "https://gdgpo.czt.gd.gov.cn"
+
+    def search(self, keyword: str) -> list[RawBidDocument]:
+        with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
+            response = client.get(self.base_url)
+            response.raise_for_status()
+            return self.parse_search_results(response.text, keyword=keyword, base_url=str(response.url))
+
+    def parse_search_results(self, html: str, keyword: str, base_url: str | None = None) -> list[RawBidDocument]:
+        return _parse_public_bid_links(
+            html,
+            keyword=keyword,
+            source_name=self.source_name,
+            base_url=base_url or self.base_url,
+        )
+
+
+class GuangzhouPublicResourceTradingCrawler(PublicBidCrawler):
+    """Parser/fetcher for 广州公共资源交易平台 tender notices."""
+
+    source_name = "广州公共资源交易平台"
+    base_url = "https://www.gzggzy.cn"
+
+    def search(self, keyword: str) -> list[RawBidDocument]:
+        with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
+            response = client.get(self.base_url)
+            response.raise_for_status()
+            return self.parse_search_results(response.text, keyword=keyword, base_url=str(response.url))
+
+    def parse_search_results(self, html: str, keyword: str, base_url: str | None = None) -> list[RawBidDocument]:
+        return _parse_public_bid_links(
+            html,
+            keyword=keyword,
+            source_name=self.source_name,
+            base_url=base_url or self.base_url,
+        )
+
+
+def _parse_public_bid_links(html: str, *, keyword: str, source_name: str, base_url: str) -> list[RawBidDocument]:
+    soup = BeautifulSoup(html, "html.parser")
+    docs: list[RawBidDocument] = []
+    page_text = soup.get_text("\n", strip=True)
+    for link in soup.find_all("a"):
+        title = _clean_text(link.get_text(" ", strip=True))
+        if not title:
+            continue
+        surrounding = _surrounding_text(link)
+        content = surrounding if len(surrounding) > len(title) else page_text
+        if not _is_scaffold_related(f"{title} {content}", keyword):
+            continue
+        href = link.get("href") or base_url
+        docs.append(
+            RawBidDocument(
+                source_name=source_name,
+                source_url=urljoin(base_url, href),
+                title=title[:512],
+                publish_date=_parse_date(content) or _parse_date(title),
+                region=_detect_province_or_region(content) or _detect_province_or_region(title),
+                html_content=str(link.parent) if link.parent else str(link),
+                text_content=content,
+            )
+        )
+    return _dedupe_docs(docs)
+
+
+def _clean_text(text: str) -> str:
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def _parse_date(text: str) -> date | None:
     match = re.search(r"(20\d{2})[-年./](\d{1,2})[-月./](\d{1,2})", text)
     if not match:
@@ -214,6 +308,8 @@ def _is_scaffold_related(text: str, keyword: str) -> bool:
 
 
 def _detect_province_or_region(text: str) -> str | None:
+    if any(city in text for city in ("广州", "深圳", "佛山", "东莞", "中山", "珠海", "惠州", "江门", "肇庆", "南沙", "番禺", "顺德")):
+        return "广东"
     for region in ("广东", "内蒙古", "北京", "天津", "上海", "河北", "浙江", "四川", "重庆"):
         if region in text:
             return region
@@ -225,6 +321,12 @@ def _surrounding_text(link) -> str:
     parts: list[str] = []
     if parent:
         parts.append(parent.get_text(" ", strip=True))
+        container = parent.parent
+        if container and container is not parent:
+            parts.append(container.get_text(" ", strip=True))
+            container_sibling = container.find_next_sibling()
+            if container_sibling:
+                parts.append(container_sibling.get_text(" ", strip=True))
         sibling = parent.find_next_sibling()
         if sibling:
             parts.append(sibling.get_text(" ", strip=True))

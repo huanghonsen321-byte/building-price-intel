@@ -8,14 +8,18 @@ set -euo pipefail
 
 REPO_DIR="${BUILDING_PRICE_INTEL_DIR:-/home/huanghonsen/building-price-intel}"
 CONFIG_FILE="${NATIONAL_CRAWL_CONFIG:-$REPO_DIR/app/crawlers/config/sources_national_v4.json}"
-PYTHON_BIN="${BUILDING_PRICE_INTEL_PYTHON:-/home/huanghonsen/projects/construction-price-app/building-price-intel/.venv/bin/python}"
+PYTHON_BIN="${BUILDING_PRICE_INTEL_PYTHON:-$REPO_DIR/.venv/bin/python}"
 MODE="dry-run"
 MAX_KEYWORDS=""
+MAX_SOURCES=""
+PROVINCE_FILTER=""
+SOURCE_GROUP=""
 NO_VLLM="--no-vllm"
+NO_WECOM="0"
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/run_national_public_crawl_v4.sh [--run] [--dry-run] [--max-keywords N] [--use-vllm]
+Usage: scripts/run_national_public_crawl_v4.sh [--run] [--dry-run] [--province NAME] [--source-group NAME] [--max-keywords N] [--max-sources N] [--no-wecom] [--use-vllm]
 
 Default is --dry-run. The runner:
   - reads app/crawlers/config/sources_national_v4.json
@@ -36,6 +40,10 @@ while [[ $# -gt 0 ]]; do
     --run) MODE="run"; shift ;;
     --dry-run) MODE="dry-run"; shift ;;
     --max-keywords) MAX_KEYWORDS="${2:?missing N}"; shift 2 ;;
+    --max-sources) MAX_SOURCES="${2:?missing N}"; shift 2 ;;
+    --province) PROVINCE_FILTER="${2:?missing province}"; shift 2 ;;
+    --source-group) SOURCE_GROUP="${2:?missing source group}"; shift 2 ;;
+    --no-wecom) NO_WECOM="1"; shift ;;
     --use-vllm) NO_VLLM=""; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage; exit 2 ;;
@@ -57,24 +65,40 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
   exit 2
 fi
 
-CONFIG_JSON=$("$PYTHON_BIN" - <<'PY' "$CONFIG_FILE" "${MAX_KEYWORDS:-}"
+CONFIG_JSON=$("$PYTHON_BIN" - <<'PY' "$CONFIG_FILE" "${MAX_KEYWORDS:-}" "${MAX_SOURCES:-}" "$PROVINCE_FILTER" "$SOURCE_GROUP"
 import json, sys
 from pathlib import Path
 path = Path(sys.argv[1])
-max_keywords_arg = sys.argv[2]
+max_keywords_arg, max_sources_arg, province_filter, source_group = sys.argv[2:6]
 config = json.loads(path.read_text())
 limits = config.get("limits", {})
 max_keywords = int(max_keywords_arg or limits.get("max_keywords_per_run", 8))
+max_sources = int(max_sources_arg or limits.get("max_sources_per_run", 4))
 keywords = [item for item in config.get("keywords", []) if item][:max_keywords]
-enabled_sources = [
-    item for group in ("price_sources", "bid_sources")
-    for item in config.get(group, [])
-    if item.get("enabled") is True
-]
+
+def source_matches(source):
+    if source.get("enabled") is not True:
+        return False
+    if source_group and source_group.lower() == "guangdong":
+        if source.get("province") != "广东" and "广东" not in source.get("regions", []):
+            return False
+    if province_filter:
+        regions = source.get("regions", [])
+        if source.get("province") != province_filter and province_filter not in regions:
+            return False
+    return True
+
+price_sources = [item for item in config.get("price_sources", []) if source_matches(item)]
+bid_sources = [item for item in config.get("bid_sources", []) if source_matches(item)]
+# Province/source-group runs are bid-first; national default keeps existing enabled price/bid sources.
+enabled_sources = (bid_sources if province_filter or source_group else price_sources + bid_sources)[:max_sources]
+enabled_bid_sources = [item for item in enabled_sources if item.get("source_type") == "bid" or item in bid_sources]
 print(json.dumps({
     "keywords": keywords,
     "enabled_sources": enabled_sources,
+    "enabled_bid_sources": enabled_bid_sources,
     "limits": limits,
+    "filters": {"province": province_filter, "source_group": source_group, "max_sources": max_sources},
 }, ensure_ascii=False))
 PY
 )
@@ -94,6 +118,13 @@ fi
 export DAILY_CRAWL_KEYWORDS="$KEYWORDS"
 export DAILY_CRAWL_RETRY_ATTEMPTS="${DAILY_CRAWL_RETRY_ATTEMPTS:-3}"
 export DAILY_CRAWL_RETRY_BACKOFF_SECONDS="${DAILY_CRAWL_RETRY_BACKOFF_SECONDS:-2}"
+export DAILY_CRAWL_REQUEST_DELAY_SECONDS="${DAILY_CRAWL_REQUEST_DELAY_SECONDS:-2}"
+export DAILY_CRAWL_SOURCE_CONFIG_JSON=$("$PYTHON_BIN" - <<'PY' "$CONFIG_JSON"
+import json, sys
+payload=json.loads(sys.argv[1])
+print(json.dumps(payload.get("enabled_bid_sources", []), ensure_ascii=False))
+PY
+)
 export DAILY_BRIEFING_REGIONS="${DAILY_BRIEFING_REGIONS:-广东,华北,内蒙古,全国}"
 export DAILY_BRIEFING_CATEGORIES="${DAILY_BRIEFING_CATEGORIES:-steel,scrap,scaffold}"
 export BID_ALERT_KEYWORDS="${BID_ALERT_KEYWORDS:-脚手架,盘扣,租赁,钢管,周转材料}"
@@ -105,7 +136,8 @@ echo "Hermes V4 safe national crawler"
 echo "Mode: $MODE"
 echo "Config: $CONFIG_FILE"
 echo "Keywords: $DAILY_CRAWL_KEYWORDS"
-echo "Retry: attempts=$DAILY_CRAWL_RETRY_ATTEMPTS backoff=${DAILY_CRAWL_RETRY_BACKOFF_SECONDS}s"
+echo "Retry: attempts=$DAILY_CRAWL_RETRY_ATTEMPTS backoff=${DAILY_CRAWL_RETRY_BACKOFF_SECONDS}s delay=${DAILY_CRAWL_REQUEST_DELAY_SECONDS}s"
+echo "Filters: province=${PROVINCE_FILTER:-all} source_group=${SOURCE_GROUP:-all} max_sources=${MAX_SOURCES:-config}"
 echo "Enabled sources:"
 "$PYTHON_BIN" - <<'PY' "$CONFIG_JSON"
 import json, sys
@@ -126,7 +158,9 @@ report={
     "generated_at": datetime.now(timezone.utc).isoformat(),
     "keywords": payload["keywords"],
     "enabled_sources": payload["enabled_sources"],
+    "enabled_bid_sources": payload.get("enabled_bid_sources", []),
     "limits": payload["limits"],
+    "filters": payload.get("filters", {}),
     "message": "Dry-run only: no network crawl, no DB writes, no WeCom push.",
 }
 open(report_path, 'w').write(json.dumps(report, ensure_ascii=False, indent=2))
@@ -134,6 +168,10 @@ print(json.dumps(report, ensure_ascii=False))
 PY
   echo "Dry-run report written to $REPORT_PATH"
   exit 0
+fi
+
+if [[ "$NO_WECOM" == "1" ]]; then
+  export WECOM_WEBHOOK_URL=""
 fi
 
 set +e
