@@ -92,6 +92,10 @@ curl -X POST http://127.0.0.1:9000/api/crawl/run \
 curl -X POST http://127.0.0.1:9000/api/quote/scaffold/calculate \
   -H 'Content-Type: application/json' \
   -d '{"scaffold_type":"盘扣","region":"呼和浩特","area_m2":1000,"rental_days":90,"tonnage":20}'
+
+# mock 发送一次每日行情早报，并写入 notification_logs
+curl -X POST 'http://127.0.0.1:9000/api/notifications/daily-briefing/send?channel=mock&target=mock://local'
+curl 'http://127.0.0.1:9000/api/notifications/logs?page=1&page_size=10'
 ```
 
 完整 Flutter 契约见 [`docs/flutter_api_contract.md`](docs/flutter_api_contract.md)。
@@ -142,6 +146,24 @@ uvicorn app.main:app --host 127.0.0.1 --port 9000
 - `DATABASE_URL`: 默认 `postgresql+psycopg://building_price:building_price@127.0.0.1:5432/building_price_intel`
 - `VLLM_BASE_URL`: 默认 `http://127.0.0.1:8000/v1`
 - `VLLM_MODEL`: 默认 `aeon-local`
+- `WECOM_WEBHOOK_URL`: 企业微信机器人 webhook。不要提交真实 token；本地和 CI 可用 `channel=mock` 验证发送链路。
+
+## 企业微信 / 微信提醒
+
+当前支持两类提醒：
+
+- 每日行情早报：价格行情、近期公告、数据来源说明。
+- 重要公告提醒：关键词、地区、金额阈值命中后生成提醒。
+
+本地 mock 验证：
+
+```bash
+DATABASE_URL=sqlite+pysqlite:///./local_dev.db python scripts/send_daily_briefing.py
+curl -X POST 'http://127.0.0.1:9000/api/notifications/daily-briefing/send?channel=mock&target=mock://local'
+curl 'http://127.0.0.1:9000/api/notifications/logs'
+```
+
+企业微信机器人发送时使用 `channel=wecom_webhook`，`target` 传入运行环境中的 webhook URL。生产环境应通过环境变量/密钥管理注入 webhook，仓库只保留 `.env.example` 占位。
 
 ## 目录结构
 
