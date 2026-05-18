@@ -146,7 +146,10 @@ def create_or_update_case_from_extraction(
     case.pricing_method = extraction.get("pricing_method")
     case.publish_date = _parse_date(extraction.get("publish_date"))
     case.ai_summary = extraction.get("ai_summary")
-    case.extraction_confidence = _decimal_or_none(extraction.get("confidence")) or Decimal("0.0")
+    case.missing_fields = extraction.get("missing_fields") or []
+    case.raw_evidence_snippets = extraction.get("raw_evidence_snippets") or []
+    case.extraction_confidence = _decimal_or_none(extraction.get("extraction_confidence", extraction.get("confidence"))) or Decimal("0.0")
+    case.review_status = "pending" if case.extraction_confidence < Decimal("0.70") else "auto_extracted"
     db.flush()
     replace_reference_for_case(db, case)
     db.flush()

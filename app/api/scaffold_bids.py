@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.schemas.bid import ReviewRequest, ScaffoldBidCaseDetail, ScaffoldBidCaseOut, ScaffoldPriceReferenceOut
 from app.schemas.pagination import Page
+from app.services.ai_extraction_service import extract_pending_bid_documents
 from app.services.bid_service import get_bid_case, list_bid_cases, list_price_references, review_case
 
 router = APIRouter(prefix="/api/scaffold", tags=["scaffold"])
@@ -39,6 +40,15 @@ def get_scaffold_bids(
         page_size=page_size,
     )
     return {"items": items, "total": total, "page": page, "page_size": page_size}
+
+
+@router.post("/bids/extract-pending", response_model=list[ScaffoldBidCaseOut])
+def post_extract_pending_bids(
+    limit: int = Query(default=20, ge=1, le=100),
+    use_vllm: bool = Query(default=True),
+    db: Session = Depends(get_db),
+):
+    return extract_pending_bid_documents(db, limit=limit, use_vllm=use_vllm)
 
 
 @router.get("/bids/{case_id}", response_model=ScaffoldBidCaseDetail)
