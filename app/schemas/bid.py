@@ -46,6 +46,8 @@ class ScaffoldBidCaseOut(BaseModel):
     source_url: str
     publish_date: date | None = None
     ai_summary: str | None = None
+    missing_fields: list[str] = []
+    raw_evidence_snippets: list[str] = []
     extraction_confidence: Decimal
     review_status: str
     created_at: datetime

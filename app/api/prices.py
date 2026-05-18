@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.schemas.pagination import Page
 from app.schemas.price import PriceDailyOut, PriceTrendPoint
 from app.services.price_service import list_prices, list_today_prices, list_trends
+from app.services.price_summary_service import generate_today_price_summary
 
 router = APIRouter(prefix="/api/prices", tags=["prices"])
 
@@ -14,6 +15,11 @@ router = APIRouter(prefix="/api/prices", tags=["prices"])
 @router.get("/today", response_model=list[PriceDailyOut])
 def get_today_prices(db: Session = Depends(get_db)):
     return list_today_prices(db)
+
+
+@router.get("/today/summary")
+def get_today_price_summary(category: str | None = None, db: Session = Depends(get_db)):
+    return generate_today_price_summary(db, category=category)
 
 
 @router.get("", response_model=Page[PriceDailyOut])
