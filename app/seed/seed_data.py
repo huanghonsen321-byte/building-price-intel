@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import delete
+from sqlalchemy import delete, select
 
 from app.core.database import Base, SessionLocal, engine
 from app.models.bid import ScaffoldBidCase, ScaffoldPriceReference
@@ -16,7 +16,7 @@ MOCK_SOURCE = "mock-seed"
 
 def reset_mock_data() -> None:
     with SessionLocal() as db:
-        mock_cases = db.query(ScaffoldBidCase.id).filter(ScaffoldBidCase.source_url.like("https://mock-seed.local/%")).subquery()
+        mock_cases = select(ScaffoldBidCase.id).where(ScaffoldBidCase.source_url.like("https://mock-seed.local/%"))
         db.execute(delete(ReviewTask).where(ReviewTask.case_id.in_(mock_cases)))
         db.execute(delete(ScaffoldPriceReference).where(ScaffoldPriceReference.bid_case_id.in_(mock_cases)))
         db.execute(delete(ScaffoldBidCase).where(ScaffoldBidCase.source_url.like("https://mock-seed.local/%")))

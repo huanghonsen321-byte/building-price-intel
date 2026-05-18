@@ -7,6 +7,7 @@ class ScaffoldQuoteRequest(BaseModel):
     scaffold_type: str = "盘扣"
     region: str | None = None
     area_m2: Decimal | None = Field(default=None, gt=0)
+    rental_days: Decimal | None = Field(default=None, gt=0)
     rental_months: Decimal | None = Field(default=None, gt=0)
     tonnage: Decimal | None = Field(default=None, gt=0)
 
