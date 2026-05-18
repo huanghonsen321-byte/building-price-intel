@@ -12,8 +12,11 @@ _ENV_OVERRIDE_VARS=(
   DAILY_CRAWL_KEYWORDS
   DAILY_CRAWL_RETRY_ATTEMPTS
   DAILY_CRAWL_RETRY_BACKOFF_SECONDS
+  DAILY_CRAWL_REQUEST_DELAY_SECONDS
+  DAILY_CRAWL_SOURCE_CONFIG_JSON
   DAILY_BRIEFING_REGIONS
   DAILY_BRIEFING_CATEGORIES
+  WECOM_WEBHOOK_URL
   BID_ALERT_KEYWORDS
   BID_ALERT_REGIONS
   BID_ALERT_MIN_AMOUNT
@@ -53,7 +56,7 @@ for _env_var in "${_ENV_OVERRIDE_VARS[@]}"; do
   restore_env_override "$_env_var"
 done
 unset _env_var
-PYTHON_BIN="${BUILDING_PRICE_INTEL_PYTHON:-/home/huanghonsen/projects/construction-price-app/building-price-intel/.venv/bin/python}"
+PYTHON_BIN="${BUILDING_PRICE_INTEL_PYTHON:-$REPO_DIR/.venv/bin/python}"
 DB_PATH="${BUILDING_PRICE_INTEL_DB:-$REPO_DIR/local_prod.db}"
 export DATABASE_URL="${DATABASE_URL:-sqlite+pysqlite:///$DB_PATH}"
 export DAILY_CRAWL_KEYWORDS="${DAILY_CRAWL_KEYWORDS:-脚手架,盘扣脚手架,钢材,废钢}"
@@ -66,7 +69,7 @@ export BID_ALERT_MIN_AMOUNT="${BID_ALERT_MIN_AMOUNT:-1000000}"
 cd "$REPO_DIR"
 mkdir -p "$(dirname "$DB_PATH")" app/crawlers/logs
 
-alembic upgrade head
+"$PYTHON_BIN" -m alembic upgrade head
 if [ "${BOOTSTRAP_SEED_IF_EMPTY:-1}" = "1" ]; then
   PRICE_COUNT=$("$PYTHON_BIN" - <<'PY'
 from sqlalchemy import select, func

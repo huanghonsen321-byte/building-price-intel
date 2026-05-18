@@ -7,7 +7,7 @@
     "retry_attempts": 3,
     "retry_backoff_seconds": 2.0,
     "max_keywords_per_run": 8,
-    "max_sources_per_run": 4,
+    "max_sources_per_run": 6,
     "robots_policy": "respect_public_access_and_site_terms"
   },
   "price_sources": [
@@ -17,7 +17,11 @@
       "type": "httpx_html",
       "priority": 1,
       "enabled": true,
-      "categories": ["steel", "scrap", "scaffold"],
+      "categories": [
+        "steel",
+        "scrap",
+        "scaffold"
+      ],
       "notes": "现有 BusinessSocietyPriceCrawler 支持的公开价格页"
     },
     {
@@ -26,7 +30,9 @@
       "type": "planned_public_adapter",
       "priority": 2,
       "enabled": false,
-      "categories": ["steel"],
+      "categories": [
+        "steel"
+      ],
       "notes": "待确认公开页面结构后接入；禁止登录绕过和付费数据抓取"
     },
     {
@@ -35,7 +41,9 @@
       "type": "planned_public_adapter",
       "priority": 3,
       "enabled": false,
-      "categories": ["scrap"],
+      "categories": [
+        "scrap"
+      ],
       "notes": "待确认公开页面结构后接入；禁止登录绕过和付费数据抓取"
     }
   ],
@@ -46,17 +54,57 @@
       "type": "httpx_html",
       "priority": 1,
       "enabled": true,
-      "regions": ["全国"],
-      "notes": "现有 ChinaGovernmentProcurementCrawler 支持的公开搜索页"
+      "regions": [
+        "全国"
+      ],
+      "notes": "现有 ChinaGovernmentProcurementCrawler 支持的公开搜索页",
+      "source_type": "real_public_bid",
+      "parser_name": "ChinaGovernmentProcurementCrawler",
+      "province": "全国"
     },
     {
       "name": "广东省公共资源交易平台",
       "url": "https://ygp.gdzwfw.gov.cn/ggzy-portal/#/44/index",
-      "type": "planned_public_adapter",
+      "type": "httpx_html",
+      "source_type": "bid",
+      "parser_name": "GuangdongPublicResourceTradingCrawler",
+      "province": "广东",
       "priority": 2,
-      "enabled": false,
-      "regions": ["广东", "广州", "深圳", "佛山", "东莞", "中山", "惠州", "珠海", "江门", "肇庆", "清远", "韶关", "汕头", "湛江", "茂名", "阳江", "梅州", "河源", "汕尾", "潮州", "揭阳", "云浮"],
-      "notes": "需要按公开检索接口/页面单独适配，禁止验证码/登录绕过"
+      "enabled": true,
+      "regions": [
+        "广东"
+      ],
+      "notes": "第一批已接入 parser；只采集公开页面，不绕过验证码/登录/付费墙"
+    },
+    {
+      "name": "广东政府采购智慧云平台",
+      "url": "https://gdgpo.czt.gd.gov.cn",
+      "type": "httpx_html",
+      "source_type": "bid",
+      "parser_name": "GuangdongGovernmentProcurementSmartCloudCrawler",
+      "province": "广东",
+      "priority": 3,
+      "enabled": true,
+      "regions": [
+        "广东"
+      ],
+      "notes": "第一批已接入 parser；只采集公开页面，不绕过验证码/登录/付费墙"
+    },
+    {
+      "name": "广州公共资源交易平台",
+      "url": "https://www.gzggzy.cn",
+      "type": "httpx_html",
+      "source_type": "bid",
+      "parser_name": "GuangzhouPublicResourceTradingCrawler",
+      "province": "广东",
+      "city": "广州",
+      "priority": 4,
+      "enabled": true,
+      "regions": [
+        "广东",
+        "广州"
+      ],
+      "notes": "第一批已接入 parser；只采集公开页面，不绕过验证码/登录/付费墙"
     },
     {
       "name": "全国公共资源交易平台",
@@ -64,7 +112,9 @@
       "type": "planned_public_adapter",
       "priority": 3,
       "enabled": false,
-      "regions": ["全国"],
+      "regions": [
+        "全国"
+      ],
       "notes": "待确认公开搜索接口后接入，先作为配置候选"
     },
     {
@@ -73,8 +123,310 @@
       "type": "planned_public_adapter",
       "priority": 4,
       "enabled": false,
-      "regions": ["全国"],
+      "regions": [
+        "全国"
+      ],
       "notes": "待确认公开页面结构后接入"
+    },
+    {
+      "name": "深圳公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "深圳",
+      "priority": 20,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "深圳"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "佛山公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "佛山",
+      "priority": 21,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "佛山"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "东莞公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "东莞",
+      "priority": 22,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "东莞"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "中山公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "中山",
+      "priority": 23,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "中山"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "珠海公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "珠海",
+      "priority": 24,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "珠海"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "惠州公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "惠州",
+      "priority": 25,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "惠州"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "江门公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "江门",
+      "priority": 26,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "江门"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "肇庆公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "肇庆",
+      "priority": 27,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "肇庆"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "清远公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "清远",
+      "priority": 28,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "清远"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "韶关公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "韶关",
+      "priority": 29,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "韶关"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "汕头公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "汕头",
+      "priority": 30,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "汕头"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "湛江公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "湛江",
+      "priority": 31,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "湛江"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "茂名公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "茂名",
+      "priority": 32,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "茂名"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "阳江公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "阳江",
+      "priority": 33,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "阳江"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "梅州公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "梅州",
+      "priority": 34,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "梅州"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "河源公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "河源",
+      "priority": 35,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "河源"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "汕尾公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "汕尾",
+      "priority": 36,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "汕尾"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "潮州公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "潮州",
+      "priority": 37,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "潮州"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "揭阳公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "揭阳",
+      "priority": 38,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "揭阳"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
+    },
+    {
+      "name": "云浮公共资源交易平台",
+      "url": "",
+      "type": "planned_public_adapter",
+      "source_type": "bid",
+      "province": "广东",
+      "city": "云浮",
+      "priority": 39,
+      "enabled": false,
+      "regions": [
+        "广东",
+        "云浮"
+      ],
+      "notes": "后续逐个确认公开页面结构、编写 parser 和测试后再启用"
     }
   ],
   "keywords": [
