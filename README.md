@@ -84,6 +84,11 @@ curl -X POST http://127.0.0.1:9000/api/crawl/run \
   -H 'Content-Type: application/json' \
   -d '{"keyword":"脚手架"}'
 
+# 合规公开数据源采集：生意社公开价格页 + 中国政府采购网公开搜索页
+curl -X POST http://127.0.0.1:9000/api/crawl/run \
+  -H 'Content-Type: application/json' \
+  -d '{"keyword":"脚手架","source_type":"public"}'
+
 curl -X POST http://127.0.0.1:9000/api/quote/scaffold/calculate \
   -H 'Content-Type: application/json' \
   -d '{"scaffold_type":"盘扣","region":"呼和浩特","area_m2":1000,"rental_days":90,"tonnage":20}'
@@ -115,6 +120,20 @@ uvicorn app.main:app --host 127.0.0.1 --port 9000
 ```
 
 如果 vLLM 离线、超时或返回 JSON 解析失败，`app/ai/extractor.py` 会记录日志并返回低置信度 fallback JSON，不会让 FastAPI 后端崩溃。
+
+## 公开数据源与合规边界
+
+当前公开数据采集入口：
+
+- 价格源：生意社公开价格页（`https://www.100ppi.com/`），仅解析公开页面中可见的品名、日期、地区、单位和价格。
+- 招投标源：中国政府采购网公开搜索页（`http://search.ccgp.gov.cn/bxsearch`），仅读取公开搜索结果和可见公告文本。
+
+合规边界：
+
+- 不登录、不绕验证码、不抓付费数据。
+- 不高频请求；采集源在 `crawl_sources.rate_limit_seconds` 中保留限速配置。
+- 保存 `source_name`、`source_url`、原文、抓取任务状态和结构化结果，方便人工复核。
+- 不同单位、地区、规格、含税状态分字段保存，不强行合并口径。
 
 ## 配置
 
