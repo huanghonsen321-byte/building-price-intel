@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict
 
 class CrawlRunRequest(BaseModel):
     keyword: str = "脚手架"
+    source_type: str = "mock"
 
 
 class CrawlTaskOut(BaseModel):
