@@ -27,6 +27,11 @@ from app.crawlers.real_public_sources import (
 from app.models.crawl import BidRawDocument, CrawlSource, CrawlTask
 from app.models.price import PriceDaily
 from app.models.review import ReviewTask
+from app.services.attachment_extractor import (
+    attachment_text_for_raw_doc,
+    discover_and_process_attachments_for_raw_doc,
+    enhanced_extract_from_attachment_text,
+)
 from app.services.bid_service import create_or_update_case_from_extraction
 
 
@@ -191,13 +196,43 @@ def _save_bid_docs_with_cases(db: Session, docs: list[RawBidDocument]) -> int:
     for doc in docs:
         raw, is_new = _save_bid_document(db, doc)
         saved += int(is_new)
-        extraction = _simple_extract(doc.text_content, doc.title, doc.publish_date)
-        case = create_or_update_case_from_extraction(db, extraction, source_url=doc.source_url, raw_document_id=raw.id)
+
+        # Discover and process attachments in the raw document HTML
+        try:
+            discover_and_process_attachments_for_raw_doc(db, raw)
+        except Exception:
+            pass  # Attachment discovery should never crash the pipeline
+
+        # Collect attachment text for enhanced extraction
+        attachment_text = ""
+        try:
+            attachment_text = attachment_text_for_raw_doc(db, raw.id)
+        except Exception:
+            pass
+
+        # Use enhanced extraction when attachment text is available
+        if attachment_text:
+            combined_text = f"{doc.text_content}\n\n--- ATTACHMENT TEXT ---\n{attachment_text}"
+            extraction = enhanced_extract_from_attachment_text(
+                combined_text, doc.title, doc.publish_date
+            )
+            # Fall back to simple extraction fields that enhanced may miss
+            simple = _simple_extract(doc.text_content, doc.title, doc.publish_date)
+            for key in ("project_name", "province", "city", "district", "buyer", "agency", "winner",
+                        "scaffold_type", "procurement_type", "service_scope"):
+                if not extraction.get(key):
+                    extraction[key] = simple.get(key)
+        else:
+            extraction = _simple_extract(doc.text_content, doc.title, doc.publish_date)
+
+        case = create_or_update_case_from_extraction(
+            db, extraction, source_url=doc.source_url, raw_document_id=raw.id
+        )
         if case.review_status == "pending" or case.extraction_confidence < Decimal("0.70"):
             _ensure_pending_review_task(
                 db,
                 case.id,
-                f"规则抽取置信度 {case.extraction_confidence}，请复核广东/公开公告关键字段。",
+                f"规则抽取置信度 {case.extraction_confidence}，请复核关键字段。",
             )
     return saved
 

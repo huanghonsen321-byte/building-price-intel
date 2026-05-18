@@ -23,6 +23,7 @@ class BidRawDocument(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     bid_case: Mapped["ScaffoldBidCase | None"] = relationship(back_populates="raw_document")
+    attachments: Mapped[list["BidAttachment"]] = relationship(back_populates="raw_document", cascade="all, delete-orphan")
 
 
 class CrawlSource(Base):

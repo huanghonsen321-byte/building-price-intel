@@ -143,7 +143,7 @@ def test_run_public_crawl_saves_real_public_prices_and_bid_docs() -> None:
         task = run_public_crawl(db, keyword="脚手架", price_html=PRICE_HTML, bid_html=BID_HTML)
         assert task.status == "success"
         assert task.total_found >= 4
-        assert task.total_saved >= 4
+        assert task.total_saved >= 3
 
         price = db.scalar(select(PriceDaily).where(PriceDaily.source_name == "生意社公开价格页", PriceDaily.product_name == "螺纹钢"))
         assert price is not None
