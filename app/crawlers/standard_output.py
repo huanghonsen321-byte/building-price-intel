@@ -105,8 +105,20 @@ def _ensure_source(db: Session, record: StandardCrawlerRecord) -> CrawlSource:
 
 
 def _write_price(db: Session, record: StandardCrawlerRecord) -> bool:
-    if not all([record.category, record.region, record.product_name, record.unit, record.price]):
-        raise ValueError("price record requires category/region/product_name/unit/price")
+    required_fields = {
+        "category": record.category,
+        "region": record.region,
+        "product_name": record.product_name,
+        "unit": record.unit,
+        "price": record.price,
+    }
+    missing_fields = [
+        name for name, value in required_fields.items() if value is None or value == ""
+    ]
+    if missing_fields:
+        raise ValueError(
+            f"price record requires category/region/product_name/unit/price; missing {', '.join(missing_fields)}"
+        )
     price_date = _as_date(record.publish_time) or _as_date(record.crawl_time) or date.today()
     existing = db.scalar(
         select(PriceDaily).where(

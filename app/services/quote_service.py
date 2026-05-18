@@ -48,6 +48,31 @@ def _apply_costs(base_fee: Decimal, payload: ScaffoldQuoteRequest) -> ScaffoldQu
 
 
 def _response_without_refs(payload: ScaffoldQuoteRequest) -> ScaffoldQuoteResponse:
+    if payload.fixed_total_price:
+        base_fee = _money(payload.fixed_total_price)
+        breakdown = _apply_costs(base_fee, payload)
+        estimated = breakdown.total_amount
+        unit_area_price = _money(estimated / payload.area_m2) if payload.area_m2 else None
+        unit_ton_day_price = (
+            _money(estimated / payload.tonnage / payload.rental_days)
+            if payload.tonnage and payload.rental_days
+            else None
+        )
+        return ScaffoldQuoteResponse(
+            scaffold_type=payload.scaffold_type,
+            region=payload.region,
+            pricing_method="总价折算",
+            calculated_unit="总价",
+            reference_price=base_fee,
+            estimated_amount=estimated,
+            unit_area_price=unit_area_price,
+            unit_ton_day_price=unit_ton_day_price,
+            cost_breakdown=breakdown,
+            confidence="low",
+            formula=f"无可用参考价，按输入总价 {base_fee} 元折算；合计 {estimated} 元",
+            reference_count=0,
+        )
+
     return ScaffoldQuoteResponse(
         scaffold_type=payload.scaffold_type,
         region=payload.region,

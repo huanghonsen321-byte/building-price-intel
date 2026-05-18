@@ -2,6 +2,8 @@ from datetime import date
 from decimal import Decimal
 from uuid import uuid4
 
+from sqlalchemy import delete
+
 from app.core.database import SessionLocal
 from app.models.bid import ScaffoldBidCase, ScaffoldPriceReference
 
@@ -51,6 +53,31 @@ def test_quote_area_unit_with_advanced_cost_breakdown(client) -> None:
     assert data["unit_area_price"] is not None
     assert "税费" in data["formula"]
 
+
+def test_quote_fixed_total_without_references_returns_estimate(client) -> None:
+    with SessionLocal() as db:
+        db.execute(delete(ScaffoldPriceReference))
+        db.execute(delete(ScaffoldBidCase))
+        db.commit()
+
+    response = client.post(
+        "/api/quote/scaffold/calculate",
+        json={
+            "scaffold_type": "无参考价脚手架",
+            "fixed_total_price": 100000,
+            "area_m2": 2000,
+            "tax_rate": 0.09,
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["reference_count"] == 0
+    assert data["calculated_unit"] == "总价"
+    assert data["estimated_amount"] == "109000.00"
+    assert data["unit_area_price"] == "54.50"
+    assert data["cost_breakdown"]["base_rental_fee"] == "100000.00"
+    assert "输入总价" in data["formula"]
 
 
 def test_quote_ton_day_unit(client) -> None:

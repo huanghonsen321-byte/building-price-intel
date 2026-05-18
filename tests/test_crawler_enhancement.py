@@ -37,6 +37,29 @@ def test_standard_price_record_writes_price_daily_and_source() -> None:
         assert source.source_type == "standard_price"
 
 
+def test_standard_price_record_accepts_zero_price() -> None:
+    record = StandardCrawlerRecord(
+        record_type="price",
+        source_name="测试零价格源",
+        source_url="https://example.com/zero-price",
+        crawl_time=datetime.now(UTC),
+        publish_time=datetime(2026, 5, 18, tzinfo=UTC),
+        category="steel",
+        region="华北",
+        city="北京",
+        product_name="螺纹钢",
+        specification="HRB400E 20mm",
+        unit="元/吨",
+        price=Decimal("0"),
+    )
+
+    with SessionLocal() as db:
+        assert write_standard_record(db, record) is True
+        price = db.scalar(select(PriceDaily).where(PriceDaily.source_name == "测试零价格源"))
+        assert price is not None
+        assert price.price == Decimal("0.00")
+
+
 def test_standard_bid_and_reference_records_write_backend_tables() -> None:
     bid = StandardCrawlerRecord(
         record_type="bid",
