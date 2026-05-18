@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import crawl, health, notifications, prices, quote, scaffold_bids
+from app.api import attachments, crawl, health, notifications, prices, quote, scaffold_bids
 
 ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -26,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(quote.router)
     app.include_router(crawl.router)
     app.include_router(notifications.router)
+    app.include_router(attachments.router)
     return app
 
 
