@@ -66,7 +66,10 @@ def run_mock_crawl(db: Session, keyword: str) -> CrawlTask:
 
     task = CrawlTask(source_id=source.id, keyword=keyword, status="running", started_at=datetime.now(UTC))
     db.add(task)
-    db.flush()
+    db.commit()
+    db.refresh(task)
+    task_id = task.id
+
     try:
         docs = crawler.search(keyword)
         saved = 0
@@ -90,16 +93,21 @@ def run_mock_crawl(db: Session, keyword: str) -> CrawlTask:
                 saved += 1
             extraction = _simple_extract(doc.text_content, doc.title, doc.publish_date)
             create_or_update_case_from_extraction(db, extraction, source_url=doc.source_url, raw_document_id=raw.id)
+        task = db.get(CrawlTask, task_id)
         task.status = "success"
         task.total_found = len(docs)
         task.total_saved = saved
-    except Exception as exc:
-        task.status = "failed"
-        task.error_message = str(exc)
-    finally:
         task.finished_at = datetime.now(UTC)
         db.commit()
-        db.refresh(task)
+    except Exception as exc:
+        db.rollback()
+        task = db.get(CrawlTask, task_id)
+        task.status = "failed"
+        task.error_message = str(exc)
+        task.finished_at = datetime.now(UTC)
+        db.commit()
+
+    db.refresh(task)
     return task
 
 

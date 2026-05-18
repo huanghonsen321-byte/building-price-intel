@@ -48,3 +48,29 @@ def test_scaffold_price_references_list_uses_page_contract(client) -> None:
     assert data["total"] >= 1
     assert data["page"] == 1
     assert data["page_size"] == 10
+
+
+def test_scaffold_bid_review_rejects_invalid_status(client) -> None:
+    _ensure_crawl_data(client)
+    list_response = client.get("/api/scaffold/bids?page=1&page_size=1")
+    assert list_response.status_code == 200
+    case_id = list_response.json()["items"][0]["id"]
+
+    response = client.post(f"/api/scaffold/bids/{case_id}/review", json={"status": "done"})
+    assert response.status_code == 422
+
+
+def test_crawl_failure_records_failed_task_and_session_recovers(client, monkeypatch) -> None:
+    def raise_search(self, keyword):
+        raise RuntimeError("crawler unavailable")
+
+    monkeypatch.setattr("app.services.crawl_service.MockPublicBidCrawler.search", raise_search)
+    response = client.post("/api/crawl/run", json={"keyword": "脚手架"})
+    assert response.status_code == 200
+    task = response.json()["task"]
+    assert task["status"] == "failed"
+    assert "crawler unavailable" in task["error_message"]
+
+    tasks_response = client.get("/api/crawl/tasks")
+    assert tasks_response.status_code == 200
+    assert tasks_response.json()[0]["id"] == task["id"]
