@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: building-price-intel-postgres
+    environment:
+      POSTGRES_USER: building_price
+      POSTGRES_PASSWORD: building_price
+      POSTGRES_DB: building_price_intel
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U building_price -d building_price_intel"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
