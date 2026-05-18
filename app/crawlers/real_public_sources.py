@@ -2,6 +2,7 @@ import re
 from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal, InvalidOperation
+from enum import StrEnum
 from urllib.parse import urljoin
 
 import httpx
@@ -10,6 +11,46 @@ from bs4 import BeautifulSoup
 from app.crawlers.base import PublicBidCrawler, RawBidDocument
 
 USER_AGENT = "building-price-intel/0.1 (+public-data; contact: local-development)"
+
+
+class BlockedReason(StrEnum):
+    PUBLIC_PAGE_REACHABLE = "public_page_reachable"
+    PUBLIC_API_FOUND = "public_api_found"
+    NO_KEYWORD_HITS = "no_keyword_hits"
+    PARSER_NO_MATCH = "parser_no_match"
+    JS_RENDER_REQUIRED = "js_render_required"
+    BLOCKED_403 = "blocked_403"
+    CAPTCHA_REQUIRED = "captcha_required"
+    LOGIN_REQUIRED = "login_required"
+    PAID_CONTENT = "paid_content"
+    TRANSPORT_ERROR = "transport_error"
+
+
+class BlockedSourceError(RuntimeError):
+    def __init__(self, reason: BlockedReason | str, message: str | None = None) -> None:
+        self.reason = BlockedReason(reason)
+        super().__init__(message or self.reason.value)
+
+
+def classify_blocked_response(response) -> BlockedReason | None:
+    status_code = getattr(response, "status_code", None)
+    text = getattr(response, "text", "") or ""
+    lower = text.lower()
+    if status_code == 403:
+        return BlockedReason.BLOCKED_403
+    if any(marker in lower for marker in ("captcha", "验证码", "滑块验证", "人机验证")):
+        return BlockedReason.CAPTCHA_REQUIRED
+    if any(marker in lower for marker in ("登录", "登陆", "login", "sign in", "password")) and ("password" in lower or "登录" in lower or "login" in lower):
+        return BlockedReason.LOGIN_REQUIRED
+    if any(marker in lower for marker in ("付费", "会员", "订阅", "paywall", "paid content")):
+        return BlockedReason.PAID_CONTENT
+    return None
+
+
+def _raise_if_blocked(response) -> None:
+    reason = classify_blocked_response(response)
+    if reason is not None:
+        raise BlockedSourceError(reason)
 
 
 @dataclass(frozen=True)
@@ -48,6 +89,7 @@ class BusinessSocietyPriceCrawler:
         with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
             for url in self.source_urls:
                 response = client.get(url)
+                _raise_if_blocked(response)
                 response.raise_for_status()
                 rows.extend(self.parse_prices(response.text, source_url=str(response.url)))
         return rows
@@ -105,6 +147,7 @@ class ChinaGovernmentProcurementCrawler(PublicBidCrawler):
         params = {"searchtype": "1", "page_index": "1", "bidSort": "0", "buyerName": "", "projectId": "", "pinMu": "0", "bidType": "0", "dbselect": "bidx", "kw": keyword}
         with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
             response = client.get(self.base_url, params=params)
+            _raise_if_blocked(response)
             response.raise_for_status()
             return self.parse_search_results(response.text, keyword=keyword, base_url=self.base_url)
 
@@ -144,6 +187,7 @@ class GuangdongPublicResourceTradingCrawler(PublicBidCrawler):
     def search(self, keyword: str) -> list[RawBidDocument]:
         with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
             response = client.get(self.base_url)
+            _raise_if_blocked(response)
             response.raise_for_status()
             return self.parse_search_results(response.text, keyword=keyword, base_url=str(response.url))
 
@@ -165,6 +209,7 @@ class GuangdongGovernmentProcurementSmartCloudCrawler(PublicBidCrawler):
     def search(self, keyword: str) -> list[RawBidDocument]:
         with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
             response = client.get(self.base_url)
+            _raise_if_blocked(response)
             response.raise_for_status()
             return self.parse_search_results(response.text, keyword=keyword, base_url=str(response.url))
 
@@ -186,6 +231,7 @@ class GuangzhouPublicResourceTradingCrawler(PublicBidCrawler):
     def search(self, keyword: str) -> list[RawBidDocument]:
         with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
             response = client.get(self.base_url)
+            _raise_if_blocked(response)
             response.raise_for_status()
             return self.parse_search_results(response.text, keyword=keyword, base_url=str(response.url))
 

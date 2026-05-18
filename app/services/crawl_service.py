@@ -6,12 +6,14 @@ import time
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.crawlers.base import RawBidDocument
 from app.crawlers.mock_public_bid_crawler import MockPublicBidCrawler
 from app.crawlers.real_public_sources import (
+    BlockedReason,
+    BlockedSourceError,
     BusinessSocietyPriceCrawler,
     ChinaGovernmentProcurementCrawler,
     GuangdongGovernmentProcurementSmartCloudCrawler,
@@ -32,6 +34,26 @@ BID_CRAWLER_REGISTRY = {
     "GuangdongGovernmentProcurementSmartCloudCrawler": GuangdongGovernmentProcurementSmartCloudCrawler,
     "GuangzhouPublicResourceTradingCrawler": GuangzhouPublicResourceTradingCrawler,
 }
+
+
+FALLBACK_SOURCE_CONFIGS = [
+    {
+        "name": "全国公共资源交易平台汇总搜索",
+        "url": "https://www.ggzy.gov.cn/information/html/a/",
+        "source_type": "bid",
+        "parser_name": "ChinaGovernmentProcurementCrawler",
+        "enabled": False,
+        "fallback_kind": "national_public_resource_aggregate",
+    },
+    {
+        "name": "中国政府采购网",
+        "url": ChinaGovernmentProcurementCrawler.base_url,
+        "source_type": "real_public_bid",
+        "parser_name": "ChinaGovernmentProcurementCrawler",
+        "enabled": True,
+        "fallback_kind": "china_government_procurement",
+    },
+]
 
 DEFAULT_BID_SOURCE_CONFIGS = [
     {
@@ -71,6 +93,48 @@ def _enabled_bid_source_configs(source_configs: list[dict] | None, include_defau
         )
         and config.get("parser_name")
     ]
+
+
+def _source_configs_with_fallbacks(config: dict) -> list[dict]:
+    fallbacks = [item for item in config.get("fallbacks", []) if isinstance(item, dict)]
+    if fallbacks:
+        return [fallback for fallback in fallbacks if fallback.get("enabled", True) is True and fallback.get("parser_name")]
+    configured_defaults = [fallback for fallback in FALLBACK_SOURCE_CONFIGS if fallback.get("enabled", True) is True]
+    # Other compliant fallback categories are operational/manual paths: provincial/city
+    # announcement columns, public site search, RSS/open APIs, manual CSV/Excel uploads,
+    # and supplier-authorized APIs. They are recorded in source metadata when present;
+    # only configured executable fallbacks are run automatically.
+    return configured_defaults
+
+
+def _apply_source_config_metadata(source: CrawlSource, config: dict) -> None:
+    source.requires_browser = bool(config.get("requires_browser", source.requires_browser))
+    source.requires_manual_review = bool(config.get("requires_manual_review", source.requires_manual_review))
+    source.public_page_reachable = bool(config.get("public_page_reachable", source.public_page_reachable))
+    source.public_api_found = bool(config.get("public_api_found", source.public_api_found))
+    if config.get("parser_status"):
+        source.parser_status = str(config["parser_status"])
+
+
+def _mark_source_success(source: CrawlSource, docs_found: int) -> None:
+    source.last_success_at = datetime.now(UTC)
+    source.last_blocked_reason = None
+    source.parser_status = "ok" if docs_found else BlockedReason.NO_KEYWORD_HITS.value
+    source.requires_manual_review = False
+    source.reliability_score = min(1.0, float(source.reliability_score or 0.0) + 0.1 + (0.05 if docs_found else 0.0))
+
+
+def _mark_source_blocked(source: CrawlSource, reason: BlockedReason | str) -> None:
+    reason_value = str(reason.value if isinstance(reason, BlockedReason) else reason)
+    source.last_blocked_reason = reason_value
+    source.parser_status = reason_value
+    source.requires_manual_review = True
+    source.reliability_score = max(0.0, float(source.reliability_score or 0.0) - 0.2)
+
+
+def _mark_source_transport_error(source: CrawlSource, message: str) -> None:
+    _mark_source_blocked(source, BlockedReason.TRANSPORT_ERROR)
+    source.parser_status = BlockedReason.TRANSPORT_ERROR.value
 
 
 def _ensure_pending_review_task(db: Session, case_id: int, note: str) -> None:
@@ -233,6 +297,55 @@ def _save_price_row(db: Session, row: PublicPriceRow) -> bool:
     return False
 
 
+def _run_bid_source_config(
+    db: Session,
+    config: dict,
+    keyword: str,
+    bid_html: str | None,
+    bid_html_by_parser: dict[str, str] | None,
+    errors: list[str],
+    *,
+    is_fallback: bool = False,
+) -> list[RawBidDocument]:
+    parser_name = str(config.get("parser_name"))
+    crawler_cls = BID_CRAWLER_REGISTRY.get(parser_name)
+    if crawler_cls is None:
+        errors.append(f"unknown parser_name={parser_name}")
+        return []
+    crawler = crawler_cls()
+    configured_url = config.get("url") or crawler.base_url
+    if configured_url:
+        crawler.base_url = configured_url
+    source = _get_or_create_source(
+        db,
+        name=config.get("name") or crawler.source_name,
+        base_url=configured_url,
+        source_type=config.get("source_type") or "bid",
+    )
+    _apply_source_config_metadata(source, config)
+    try:
+        if bid_html_by_parser and parser_name in bid_html_by_parser:
+            docs = crawler.parse_search_results(bid_html_by_parser[parser_name], keyword=keyword, base_url=config.get("url") or crawler.base_url)
+        elif bid_html is not None and parser_name == "ChinaGovernmentProcurementCrawler":
+            docs = crawler.parse_search_results(bid_html, keyword=keyword, base_url=config.get("url") or crawler.base_url)
+        else:
+            docs = crawler.search(keyword)
+    except BlockedSourceError as exc:
+        _mark_source_blocked(source, exc.reason)
+        errors.append(f"{source.name}: {exc.reason.value}")
+        return []
+    except Exception as exc:
+        _mark_source_transport_error(source, str(exc))
+        errors.append(f"{source.name}: {BlockedReason.TRANSPORT_ERROR.value}: {exc}")
+        return []
+    if docs:
+        _mark_source_success(source, len(docs))
+    else:
+        source.parser_status = BlockedReason.NO_KEYWORD_HITS.value if is_fallback else BlockedReason.PARSER_NO_MATCH.value
+        source.last_blocked_reason = None
+    return docs
+
+
 def run_mock_crawl(db: Session, keyword: str) -> CrawlTask:
     crawler = MockPublicBidCrawler()
     source = _get_or_create_source(db, name=crawler.source_name, base_url=crawler.base_url, source_type="mock_public_bid")
@@ -272,7 +385,8 @@ def run_public_crawl(
         parser_name = str(config.get("parser_name"))
         crawler_cls = BID_CRAWLER_REGISTRY.get(parser_name)
         if crawler_cls is not None:
-            _get_or_create_source(db, name=config.get("name") or crawler_cls.source_name, base_url=config.get("url") or crawler_cls.base_url, source_type=config.get("source_type") or "bid")
+            source = _get_or_create_source(db, name=config.get("name") or crawler_cls.source_name, base_url=config.get("url") or crawler_cls.base_url, source_type=config.get("source_type") or "bid")
+            _apply_source_config_metadata(source, config)
     task = CrawlTask(source_id=price_source.id, keyword=keyword, status="running", started_at=datetime.now(UTC))
     db.add(task)
     db.flush()
@@ -287,23 +401,18 @@ def run_public_crawl(
         all_docs: list[RawBidDocument] = []
         errors: list[str] = []
         for config in active_source_configs:
-            parser_name = str(config.get("parser_name"))
-            crawler_cls = BID_CRAWLER_REGISTRY.get(parser_name)
-            if crawler_cls is None:
-                errors.append(f"unknown parser_name={parser_name}")
-                continue
-            crawler = crawler_cls()
-            if bid_html_by_parser and parser_name in bid_html_by_parser:
-                docs = crawler.parse_search_results(bid_html_by_parser[parser_name], keyword=keyword, base_url=config.get("url") or crawler.base_url)
-            elif bid_html is not None and parser_name == "ChinaGovernmentProcurementCrawler":
-                docs = crawler.parse_search_results(bid_html, keyword=keyword, base_url=config.get("url") or crawler.base_url)
-            else:
-                try:
-                    docs = crawler.search(keyword)
-                except Exception as exc:
-                    errors.append(f"{config.get('name') or parser_name}: {exc}")
-                    continue
+            docs = _run_bid_source_config(db, config, keyword, bid_html, bid_html_by_parser, errors)
             all_docs.extend(docs)
+            if docs:
+                continue
+            source_name = config.get("name") or str(config.get("parser_name"))
+            source = db.scalar(select(CrawlSource).where(CrawlSource.name == source_name))
+            if source is not None and source.last_blocked_reason:
+                for fallback_config in _source_configs_with_fallbacks(config):
+                    fallback_docs = _run_bid_source_config(db, fallback_config, keyword, bid_html, bid_html_by_parser, errors, is_fallback=True)
+                    all_docs.extend(fallback_docs)
+                    if fallback_docs:
+                        break
             delay = float(os.getenv("DAILY_CRAWL_REQUEST_DELAY_SECONDS", "0") or 0)
             if delay > 0:
                 time.sleep(delay)
@@ -329,3 +438,56 @@ def run_public_crawl(
 
 def list_crawl_tasks(db: Session) -> list[CrawlTask]:
     return list(db.scalars(select(CrawlTask).order_by(CrawlTask.id.desc()).limit(100)))
+
+
+def build_crawl_dashboard_summary(db: Session) -> dict:
+    today = datetime.now(UTC).date()
+    sources = list(db.scalars(select(CrawlSource)).all())
+    blocked_sources = [source for source in sources if source.last_blocked_reason]
+    available_sources = [source for source in sources if source.enabled and not source.last_blocked_reason and source.parser_status in {"ok", BlockedReason.NO_KEYWORD_HITS.value, "unknown"}]
+    reason_distribution: dict[str, int] = {}
+    for source in blocked_sources:
+        reason = source.last_blocked_reason or "unknown"
+        reason_distribution[reason] = reason_distribution.get(reason, 0) + 1
+
+    today_successful_source_ids = set(
+        db.scalars(
+            select(CrawlTask.source_id).where(
+                CrawlTask.status == "success",
+                CrawlTask.source_id.is_not(None),
+                func.date(CrawlTask.finished_at) == today.isoformat(),
+            )
+        ).all()
+    )
+
+    tasks = list(db.scalars(select(CrawlTask).where(CrawlTask.source_id.is_not(None))).all())
+    source_by_id = {source.id: source for source in sources}
+
+    def _is_guangdong_source(source: CrawlSource | None) -> bool:
+        if source is None:
+            return False
+        text = f"{source.name} {source.base_url}"
+        return any(marker in text for marker in ("广东", "广州", "深圳", "佛山", "东莞", "gd", "gz"))
+
+    def _success_rate(regional: bool | None) -> float:
+        scoped: list[CrawlTask] = []
+        for task in tasks:
+            source = source_by_id.get(task.source_id or -1)
+            is_gd = _is_guangdong_source(source)
+            if regional is True and not is_gd:
+                continue
+            if regional is False and is_gd:
+                continue
+            scoped.append(task)
+        if not scoped:
+            return 0.0
+        return round(sum(1 for task in scoped if task.status == "success") / len(scoped), 4)
+
+    return {
+        "blocked_source_count": len(blocked_sources),
+        "blocked_reason_distribution": reason_distribution,
+        "available_source_count": len(available_sources),
+        "today_successful_source_count": len(today_successful_source_ids),
+        "guangdong_success_rate": _success_rate(True),
+        "national_success_rate": _success_rate(False),
+    }
