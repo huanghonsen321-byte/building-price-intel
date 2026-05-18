@@ -20,13 +20,18 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
+import httpx
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from sqlalchemy import select  # noqa: E402
+from sqlalchemy import func, select  # noqa: E402
 
+from app.core.config import get_settings  # noqa: E402
 from app.core.database import SessionLocal  # noqa: E402
 from app.models.bid import ScaffoldBidCase  # noqa: E402
+from app.models.crawl import BidRawDocument  # noqa: E402
+from app.models.review import ReviewTask  # noqa: E402
 from app.services.ai_extraction_service import extract_pending_bid_documents  # noqa: E402
 from app.services.crawl_service import run_public_crawl  # noqa: E402
 from app.services.notification_service import alert_for_bid_case, send_daily_briefing  # noqa: E402
@@ -79,6 +84,41 @@ def _run_public_crawl_with_retry(db, keyword: str, attempts: int, backoff_second
             db.rollback()
             time.sleep(max(0.0, backoff_seconds) * attempt)
     return last_task, attempts
+
+
+def _vllm_available() -> bool:
+    settings = get_settings()
+    try:
+        with httpx.Client(base_url=settings.vllm_base_url, timeout=2.0) as client:
+            response = client.get("/models")
+            response.raise_for_status()
+            return True
+    except Exception:
+        return False
+
+
+def _collect_observability(db) -> dict:
+    raw_total = db.scalar(select(func.count()).select_from(BidRawDocument)) or 0
+    raw_pending_for_ai = (
+        db.scalar(
+            select(func.count())
+            .select_from(BidRawDocument)
+            .outerjoin(BidRawDocument.bid_case)
+            .where(BidRawDocument.bid_case == None)  # noqa: E711
+        )
+        or 0
+    )
+    raw_linked = db.scalar(select(func.count()).select_from(BidRawDocument).join(BidRawDocument.bid_case)) or 0
+    pending_review = db.scalar(select(func.count()).select_from(ScaffoldBidCase).where(ScaffoldBidCase.review_status == "pending")) or 0
+    review_tasks_total = db.scalar(select(func.count()).select_from(ReviewTask)) or 0
+    return {
+        "raw_documents_total": raw_total,
+        "raw_documents_pending_for_ai": raw_pending_for_ai,
+        "raw_documents_linked_to_cases": raw_linked,
+        "scaffold_cases_pending_review": pending_review,
+        "review_tasks_total": review_tasks_total,
+        "vllm_available": _vllm_available(),
+    }
 
 
 def run_pipeline(use_vllm: bool = True, pending_limit: int = 50) -> dict:
@@ -178,6 +218,8 @@ def run_pipeline(use_vllm: bool = True, pending_limit: int = 50) -> dict:
                 report["alerts_sent"] += 1
             else:
                 report["errors"].append(f"alert send failed for case {case.id}: {result.error_message}")
+
+        report.update(_collect_observability(db))
 
     report["finished_at"] = datetime.now(UTC).isoformat()
     report["ok"] = not report["errors"]

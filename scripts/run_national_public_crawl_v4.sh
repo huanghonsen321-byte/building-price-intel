@@ -12,10 +12,11 @@ PYTHON_BIN="${BUILDING_PRICE_INTEL_PYTHON:-/home/huanghonsen/projects/constructi
 MODE="dry-run"
 MAX_KEYWORDS=""
 NO_VLLM="--no-vllm"
+NO_WECOM="0"
 
 usage() {
   cat <<'USAGE'
-Usage: scripts/run_national_public_crawl_v4.sh [--run] [--dry-run] [--max-keywords N] [--use-vllm]
+Usage: scripts/run_national_public_crawl_v4.sh [--run] [--dry-run] [--max-keywords N] [--use-vllm] [--no-wecom]
 
 Default is --dry-run. The runner:
   - reads app/crawlers/config/sources_national_v4.json
@@ -37,6 +38,7 @@ while [[ $# -gt 0 ]]; do
     --dry-run) MODE="dry-run"; shift ;;
     --max-keywords) MAX_KEYWORDS="${2:?missing N}"; shift 2 ;;
     --use-vllm) NO_VLLM=""; shift ;;
+    --no-wecom) NO_WECOM="1"; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown argument: $1" >&2; usage; exit 2 ;;
   esac
@@ -106,6 +108,10 @@ echo "Mode: $MODE"
 echo "Config: $CONFIG_FILE"
 echo "Keywords: $DAILY_CRAWL_KEYWORDS"
 echo "Retry: attempts=$DAILY_CRAWL_RETRY_ATTEMPTS backoff=${DAILY_CRAWL_RETRY_BACKOFF_SECONDS}s"
+if [[ "$NO_WECOM" == "1" ]]; then
+  export WECOM_WEBHOOK_URL=""
+  echo "WeCom: disabled for this run (--no-wecom, mock sender)"
+fi
 echo "Enabled sources:"
 "$PYTHON_BIN" - <<'PY' "$CONFIG_JSON"
 import json, sys

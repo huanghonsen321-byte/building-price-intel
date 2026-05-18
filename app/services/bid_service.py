@@ -114,6 +114,35 @@ def list_price_references(
     return items, total
 
 
+def ensure_review_task_for_case(
+    db: Session,
+    case: ScaffoldBidCase,
+    reason: str = "crawler generated pending case; needs manual review",
+    confidence_threshold: Decimal = Decimal("0.70"),
+) -> ReviewTask | None:
+    """Ensure low-confidence/pending scaffold cases appear in the review queue.
+
+    The Flutter review page reads scaffold_bid_cases.review_status directly.
+    ReviewTask is a supplemental operations queue used for dashboard stats,
+    alerts, and manual review assignment, so it must not duplicate rows.
+    """
+    confidence = Decimal(str(case.extraction_confidence or 0))
+    needs_review = (
+        case.review_status == "pending"
+        or confidence < confidence_threshold
+        or bool(case.missing_fields)
+    )
+    if not needs_review:
+        return None
+    existing = db.scalar(select(ReviewTask).where(ReviewTask.case_id == case.id, ReviewTask.status == "pending"))
+    if existing is not None:
+        return existing
+    task = ReviewTask(case_id=case.id, status="pending", reviewer_note=reason)
+    db.add(task)
+    db.flush()
+    return task
+
+
 def create_or_update_case_from_extraction(
     db: Session,
     extraction: dict[str, Any],

@@ -11,7 +11,7 @@ from app.crawlers.mock_public_bid_crawler import MockPublicBidCrawler
 from app.crawlers.real_public_sources import BusinessSocietyPriceCrawler, ChinaGovernmentProcurementCrawler, PublicPriceRow
 from app.models.crawl import BidRawDocument, CrawlSource, CrawlTask
 from app.models.price import PriceDaily
-from app.services.bid_service import create_or_update_case_from_extraction
+from app.services.bid_service import create_or_update_case_from_extraction, ensure_review_task_for_case
 
 
 def _amount_to_decimal(value: str | None, unit: str | None) -> Decimal | None:
@@ -164,7 +164,8 @@ def run_mock_crawl(db: Session, keyword: str) -> CrawlTask:
             raw, is_new = _save_bid_document(db, doc)
             saved += int(is_new)
             extraction = _simple_extract(doc.text_content, doc.title, doc.publish_date)
-            create_or_update_case_from_extraction(db, extraction, source_url=doc.source_url, raw_document_id=raw.id)
+            case = create_or_update_case_from_extraction(db, extraction, source_url=doc.source_url, raw_document_id=raw.id)
+            ensure_review_task_for_case(db, case)
         task.status = "success"
         task.total_found = len(docs)
         task.total_saved = saved
@@ -203,7 +204,8 @@ def run_public_crawl(db: Session, keyword: str, price_html: str | None = None, b
             raw, is_new = _save_bid_document(db, doc)
             saved += int(is_new)
             extraction = _simple_extract(doc.text_content, doc.title, doc.publish_date)
-            create_or_update_case_from_extraction(db, extraction, source_url=doc.source_url, raw_document_id=raw.id)
+            case = create_or_update_case_from_extraction(db, extraction, source_url=doc.source_url, raw_document_id=raw.id)
+            ensure_review_task_for_case(db, case)
         task.status = "success"
         task.total_found = len(price_rows) + len(docs)
         task.total_saved = saved
