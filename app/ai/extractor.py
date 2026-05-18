@@ -1,4 +1,5 @@
 import json
+import logging
 from decimal import Decimal
 from typing import Any
 
@@ -6,6 +7,8 @@ import httpx
 
 from app.ai.prompts import SCAFFOLD_EXTRACT_SYSTEM_PROMPT, SCAFFOLD_EXTRACT_USER_PROMPT
 from app.core.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 def _empty_result(text: str, reason: str) -> dict[str, Any]:
@@ -72,5 +75,12 @@ async def extract_scaffold_bid(text: str) -> dict[str, Any]:
             content = response.json()["choices"][0]["message"]["content"]
             data = json.loads(content)
             return _coerce_numbers({**_empty_result(text, "missing defaults"), **data})
+    except (httpx.TimeoutException, httpx.HTTPError) as exc:
+        logger.warning("vLLM extraction request failed; returning low-confidence fallback", exc_info=exc)
+        return _empty_result(text, f"vLLM request failed: {exc}")
+    except (KeyError, TypeError, json.JSONDecodeError) as exc:
+        logger.warning("vLLM extraction response was not valid JSON; returning low-confidence fallback", exc_info=exc)
+        return _empty_result(text, f"vLLM JSON parse failed: {exc}")
     except Exception as exc:
-        return _empty_result(text, str(exc))
+        logger.exception("Unexpected vLLM extraction failure; returning low-confidence fallback")
+        return _empty_result(text, f"unexpected extraction failure: {exc}")

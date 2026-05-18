@@ -2,7 +2,7 @@ from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.bid import ScaffoldBidCase, ScaffoldPriceReference
@@ -30,13 +30,55 @@ def _decimal_or_none(value: Any) -> Decimal | None:
         return None
 
 
-def list_bid_cases(db: Session, province: str | None = None, scaffold_type: str | None = None) -> list[ScaffoldBidCase]:
+def list_bid_cases(
+    db: Session,
+    keyword: str | None = None,
+    province: str | None = None,
+    city: str | None = None,
+    scaffold_type: str | None = None,
+    procurement_type: str | None = None,
+    review_status: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    page: int = 1,
+    page_size: int = 20,
+) -> tuple[list[ScaffoldBidCase], int]:
     stmt = select(ScaffoldBidCase)
+    if keyword:
+        pattern = f"%{keyword}%"
+        stmt = stmt.where(
+            or_(
+                ScaffoldBidCase.project_name.ilike(pattern),
+                ScaffoldBidCase.buyer.ilike(pattern),
+                ScaffoldBidCase.winner.ilike(pattern),
+                ScaffoldBidCase.service_scope.ilike(pattern),
+            )
+        )
     if province:
         stmt = stmt.where(ScaffoldBidCase.province == province)
+    if city:
+        stmt = stmt.where(ScaffoldBidCase.city == city)
     if scaffold_type:
         stmt = stmt.where(ScaffoldBidCase.scaffold_type == scaffold_type)
-    return list(db.scalars(stmt.order_by(ScaffoldBidCase.publish_date.desc().nullslast(), ScaffoldBidCase.id.desc()).limit(100)))
+    if procurement_type:
+        stmt = stmt.where(ScaffoldBidCase.procurement_type == procurement_type)
+    if review_status:
+        stmt = stmt.where(ScaffoldBidCase.review_status == review_status)
+    if date_from:
+        stmt = stmt.where(ScaffoldBidCase.publish_date >= date_from)
+    if date_to:
+        stmt = stmt.where(ScaffoldBidCase.publish_date <= date_to)
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    offset = (page - 1) * page_size
+    items = list(
+        db.scalars(
+            stmt.order_by(ScaffoldBidCase.publish_date.desc().nullslast(), ScaffoldBidCase.id.desc())
+            .offset(offset)
+            .limit(page_size)
+        )
+    )
+    return items, total
 
 
 def get_bid_case(db: Session, case_id: int) -> ScaffoldBidCase | None:
@@ -47,13 +89,29 @@ def get_bid_case(db: Session, case_id: int) -> ScaffoldBidCase | None:
     )
 
 
-def list_price_references(db: Session, region: str | None = None, scaffold_type: str | None = None) -> list[ScaffoldPriceReference]:
+def list_price_references(
+    db: Session,
+    region: str | None = None,
+    scaffold_type: str | None = None,
+    calculated_unit: str | None = None,
+    confidence: str | None = None,
+    page: int = 1,
+    page_size: int = 20,
+) -> tuple[list[ScaffoldPriceReference], int]:
     stmt = select(ScaffoldPriceReference)
     if region:
         stmt = stmt.where(ScaffoldPriceReference.region == region)
     if scaffold_type:
         stmt = stmt.where(ScaffoldPriceReference.scaffold_type == scaffold_type)
-    return list(db.scalars(stmt.order_by(ScaffoldPriceReference.created_at.desc()).limit(100)))
+    if calculated_unit:
+        stmt = stmt.where(ScaffoldPriceReference.calculated_unit == calculated_unit)
+    if confidence:
+        stmt = stmt.where(ScaffoldPriceReference.confidence == confidence)
+
+    total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
+    offset = (page - 1) * page_size
+    items = list(db.scalars(stmt.order_by(ScaffoldPriceReference.created_at.desc(), ScaffoldPriceReference.id.desc()).offset(offset).limit(page_size)))
+    return items, total
 
 
 def create_or_update_case_from_extraction(

@@ -1,20 +1,44 @@
-from fastapi import APIRouter, Depends, HTTPException
+from datetime import date
+
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas.bid import ReviewRequest, ScaffoldBidCaseDetail, ScaffoldBidCaseOut, ScaffoldPriceReferenceOut
+from app.schemas.pagination import Page
 from app.services.bid_service import get_bid_case, list_bid_cases, list_price_references, review_case
 
 router = APIRouter(prefix="/api/scaffold", tags=["scaffold"])
 
 
-@router.get("/bids", response_model=list[ScaffoldBidCaseOut])
+@router.get("/bids", response_model=Page[ScaffoldBidCaseOut])
 def get_scaffold_bids(
+    keyword: str | None = None,
     province: str | None = None,
+    city: str | None = None,
     scaffold_type: str | None = None,
+    procurement_type: str | None = None,
+    review_status: str | None = None,
+    date_from: date | None = None,
+    date_to: date | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    return list_bid_cases(db, province=province, scaffold_type=scaffold_type)
+    items, total = list_bid_cases(
+        db,
+        keyword=keyword,
+        province=province,
+        city=city,
+        scaffold_type=scaffold_type,
+        procurement_type=procurement_type,
+        review_status=review_status,
+        date_from=date_from,
+        date_to=date_to,
+        page=page,
+        page_size=page_size,
+    )
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 @router.get("/bids/{case_id}", response_model=ScaffoldBidCaseDetail)
@@ -25,13 +49,26 @@ def get_scaffold_bid(case_id: int, db: Session = Depends(get_db)):
     return case
 
 
-@router.get("/prices/reference", response_model=list[ScaffoldPriceReferenceOut])
+@router.get("/prices/reference", response_model=Page[ScaffoldPriceReferenceOut])
 def get_scaffold_price_references(
     region: str | None = None,
     scaffold_type: str | None = None,
+    calculated_unit: str | None = None,
+    confidence: str | None = None,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
 ):
-    return list_price_references(db, region=region, scaffold_type=scaffold_type)
+    items, total = list_price_references(
+        db,
+        region=region,
+        scaffold_type=scaffold_type,
+        calculated_unit=calculated_unit,
+        confidence=confidence,
+        page=page,
+        page_size=page_size,
+    )
+    return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
 @router.post("/bids/{case_id}/review")
