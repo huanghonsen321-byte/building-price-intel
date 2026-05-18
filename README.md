@@ -143,11 +143,48 @@ uvicorn app.main:app --host 127.0.0.1 --port 9000
 - 价格源：生意社公开价格页（`https://www.100ppi.com/`），仅解析公开页面中可见的品名、日期、地区、单位和价格。
 - 招投标源：中国政府采购网公开搜索页（`http://search.ccgp.gov.cn/bxsearch`），仅读取公开搜索结果和可见公告文本。
 
+增强爬虫模块位于 `app/crawlers/`：
+
+- `scrapy_spiders/price_crawler`：Scrapy CrawlSpider 项目，支持并发、随机下载延迟、随机 User-Agent、dupefilter 和数据库 pipeline。
+- `crawlee_spiders/run_crawlee.py`：Crawlee Python 适配入口，支持 `--render-js` 尝试 Playwright 渲染，默认回退 httpx。
+- `pyspider/`：pyspider 配置和任务模板；当前 Python 3.14 下 pyspider CLI 存在 upstream 兼容问题，建议用兼容容器/Crawlab 调度。
+- `crawlab_config/`：Crawlab 可选分布式调度配置。
+- `standard_output.py`：统一数据库输出，写入 `PriceDaily`、`BidRawDocument`、`ScaffoldBidCase`、`ScaffoldPriceReference`。
+
+安装爬虫扩展依赖：
+
+```bash
+pip install -r requirements-crawlers.txt
+```
+
+Scrapy 示例：
+
+```bash
+cd app/crawlers/scrapy_spiders/price_crawler
+DATABASE_URL=sqlite+pysqlite:///../../../../local_test.db scrapy crawl public_prices
+```
+
+Crawlee 示例：
+
+```bash
+cd app/crawlers/crawlee_spiders
+DATABASE_URL=sqlite+pysqlite:///../../../local_test.db \
+python run_crawlee.py --start-url "https://example.com/steel-prices" --output-db "../output.db"
+```
+
+Crawlab 可选：
+
+```bash
+docker run -d -p 8000:8000 --name crawlab \
+  --restart always \
+  crawlab/crawlab:latest
+```
+
 合规边界：
 
 - 不登录、不绕验证码、不抓付费数据。
-- 不高频请求；采集源在 `crawl_sources.rate_limit_seconds` 中保留限速配置。
-- 保存 `source_name`、`source_url`、原文、抓取任务状态和结构化结果，方便人工复核。
+- 请求间隔随机，支持重试和异常日志。
+- 保存 `source_name`、`source_url`、`crawl_time`、`publish_time`、原文、任务状态和结构化结果，方便人工复核。
 - 不同单位、地区、规格、含税状态分字段保存，不强行合并口径。
 
 ## 配置
