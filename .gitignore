@@ -12,3 +12,7 @@ htmlcov/
 app/crawlers/output/*.json
 app/crawlers/logs/*
 !app/crawlers/logs/.gitkeep
+
+# Managed browser profiles (never commit)
+.browser-profiles/
+app/crawlers/browser_profiles/

@@ -1,0 +1,61 @@
+{
+  "version": "1.0",
+  "description": "Allowed domains for managed browser collection. Only these domains and their subdomains may be visited.",
+  "allowlist": [
+    "ggzy.gov.cn",
+    "ccgp.gov.cn",
+    "zycg.gov.cn",
+    "ygp.gdzwfw.gov.cn",
+    "gdgpo.czt.gd.gov.cn",
+    "gzggzy.cn",
+    "ywtb.gzggzy.cn",
+    "szggzy.com",
+    "foshan.gov.cn",
+    "dg.gov.cn"
+  ],
+  "source_mappings": {
+    "ggzy": {
+      "name": "全国公共资源交易平台",
+      "url": "https://www.ggzy.gov.cn",
+      "search_url": "https://www.ggzy.gov.cn",
+      "search_strategy": "homepage_listing",
+      "allowed_domains": ["ggzy.gov.cn"]
+    },
+    "ccgp": {
+      "name": "中国政府采购网",
+      "url": "http://search.ccgp.gov.cn/bxsearch",
+      "search_url": "http://search.ccgp.gov.cn/bxsearch",
+      "search_strategy": "search_form",
+      "search_params": {"searchtype": "1", "page_index": "1", "bidSort": "0", "dbselect": "bidx"},
+      "allowed_domains": ["ccgp.gov.cn"]
+    },
+    "zycg": {
+      "name": "中央政府采购网",
+      "url": "https://www.zycg.gov.cn",
+      "search_url": "https://www.zycg.gov.cn",
+      "search_strategy": "spa_navigate",
+      "allowed_domains": ["zycg.gov.cn"]
+    },
+    "ygp": {
+      "name": "广东省公共资源交易平台",
+      "url": "https://ygp.gdzwfw.gov.cn/ggzy-portal/",
+      "search_url": "https://ygp.gdzwfw.gov.cn/ggzy-portal/",
+      "search_strategy": "spa_navigate",
+      "allowed_domains": ["ygp.gdzwfw.gov.cn", "gdzwfw.gov.cn"]
+    },
+    "gdgpo": {
+      "name": "广东政府采购智慧云平台",
+      "url": "https://gdgpo.czt.gd.gov.cn",
+      "search_url": "https://gdgpo.czt.gd.gov.cn",
+      "search_strategy": "spa_navigate",
+      "allowed_domains": ["gdgpo.czt.gd.gov.cn", "czt.gd.gov.cn"]
+    },
+    "gzggzy": {
+      "name": "广州公共资源交易平台",
+      "url": "https://www.gzggzy.cn",
+      "search_url": "https://www.gzggzy.cn",
+      "search_strategy": "html_page",
+      "allowed_domains": ["gzggzy.cn", "ywtb.gzggzy.cn"]
+    }
+  }
+}
