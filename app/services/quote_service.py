@@ -11,6 +11,28 @@ def _money(value: Decimal) -> Decimal:
     return value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
 
+def _preferred_unit(payload: ScaffoldQuoteRequest) -> str | None:
+    if payload.tonnage or payload.rental_days:
+        return "元/吨/天"
+    if payload.area_m2:
+        return "元/㎡"
+    if payload.rental_months:
+        return "元/月"
+    return None
+
+
+def _same_unit_refs(
+    refs: list[ScaffoldPriceReference], preferred_unit: str | None
+) -> tuple[str, list[ScaffoldPriceReference]]:
+    if preferred_unit:
+        preferred_refs = [ref for ref in refs if ref.calculated_unit == preferred_unit]
+        if preferred_refs:
+            return preferred_unit, preferred_refs
+
+    unit = refs[0].calculated_unit
+    return unit, [ref for ref in refs if ref.calculated_unit == unit]
+
+
 def calculate_scaffold_quote(db: Session, payload: ScaffoldQuoteRequest) -> ScaffoldQuoteResponse:
     stmt = select(ScaffoldPriceReference).where(ScaffoldPriceReference.scaffold_type == payload.scaffold_type)
     if payload.region:
@@ -31,8 +53,8 @@ def calculate_scaffold_quote(db: Session, payload: ScaffoldQuoteRequest) -> Scaf
             reference_count=0,
         )
 
-    avg_price = _money(sum((Decimal(item.calculated_price) for item in refs), Decimal("0")) / Decimal(len(refs)))
-    unit = refs[0].calculated_unit
+    unit, unit_refs = _same_unit_refs(refs, _preferred_unit(payload))
+    avg_price = _money(sum((Decimal(item.calculated_price) for item in unit_refs), Decimal("0")) / Decimal(len(unit_refs)))
     estimated = None
     formula = f"参考均价 {avg_price} {unit}，缺少可匹配的报价参数"
 
@@ -60,7 +82,7 @@ def calculate_scaffold_quote(db: Session, payload: ScaffoldQuoteRequest) -> Scaf
         else:
             formula = "缺少 rental_months，无法按 元/月 估算"
 
-    confidence = "medium" if len(refs) >= 2 else refs[0].confidence
+    confidence = "medium" if len(unit_refs) >= 2 else unit_refs[0].confidence
     return ScaffoldQuoteResponse(
         scaffold_type=payload.scaffold_type,
         region=payload.region,
@@ -69,5 +91,5 @@ def calculate_scaffold_quote(db: Session, payload: ScaffoldQuoteRequest) -> Scaf
         estimated_amount=estimated,
         confidence=confidence,
         formula=formula,
-        reference_count=len(refs),
+        reference_count=len(unit_refs),
     )

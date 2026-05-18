@@ -1,5 +1,6 @@
 from datetime import date, datetime
 from decimal import Decimal
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict
 
@@ -57,5 +58,5 @@ class ScaffoldBidCaseDetail(ScaffoldBidCaseOut):
 
 
 class ReviewRequest(BaseModel):
-    status: str
+    status: Literal["pending", "approved", "rejected"]
     reviewer_note: str | None = None
