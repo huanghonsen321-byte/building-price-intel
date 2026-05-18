@@ -15,6 +15,7 @@ import argparse
 import json
 import os
 import sys
+import time
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
@@ -51,6 +52,35 @@ def _channel_and_target() -> tuple[str, str | None]:
     return "mock", "mock://daily-ops"
 
 
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except Exception:
+        return default
+
+
+def _float_env(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except Exception:
+        return default
+
+
+def _run_public_crawl_with_retry(db, keyword: str, attempts: int, backoff_seconds: float):
+    """Run one keyword crawl with retry for transient public-source failures."""
+    last_task = None
+    attempts = max(1, attempts)
+    for attempt in range(1, attempts + 1):
+        task = run_public_crawl(db, keyword=keyword)
+        last_task = task
+        if task.status == "success":
+            return task, attempt
+        if attempt < attempts:
+            db.rollback()
+            time.sleep(max(0.0, backoff_seconds) * attempt)
+    return last_task, attempts
+
+
 def run_pipeline(use_vllm: bool = True, pending_limit: int = 50) -> dict:
     started_at = datetime.now(UTC)
     keywords = _csv_env("DAILY_CRAWL_KEYWORDS", "脚手架,盘扣脚手架,钢材,废钢")
@@ -59,6 +89,8 @@ def run_pipeline(use_vllm: bool = True, pending_limit: int = 50) -> dict:
     alert_keywords = _csv_env("BID_ALERT_KEYWORDS", "脚手架,盘扣,租赁,钢管")
     alert_regions = _csv_env("BID_ALERT_REGIONS", "广东,广州,深圳,佛山,内蒙古,华北")
     min_amount = _decimal_env("BID_ALERT_MIN_AMOUNT", "1000000")
+    crawl_retry_attempts = _int_env("DAILY_CRAWL_RETRY_ATTEMPTS", 3)
+    crawl_retry_backoff = _float_env("DAILY_CRAWL_RETRY_BACKOFF_SECONDS", 2.0)
     channel, target = _channel_and_target()
 
     report: dict = {
@@ -77,19 +109,25 @@ def run_pipeline(use_vllm: bool = True, pending_limit: int = 50) -> dict:
 
     with SessionLocal() as db:
         for keyword in keywords:
-            task = run_public_crawl(db, keyword=keyword)
+            task, attempts_used = _run_public_crawl_with_retry(
+                db,
+                keyword=keyword,
+                attempts=crawl_retry_attempts,
+                backoff_seconds=crawl_retry_backoff,
+            )
             report["crawl_tasks"].append(
                 {
                     "keyword": keyword,
-                    "task_id": task.id,
-                    "status": task.status,
-                    "total_found": task.total_found,
-                    "total_saved": task.total_saved,
-                    "error_message": task.error_message,
+                    "task_id": task.id if task else None,
+                    "status": task.status if task else "failed",
+                    "total_found": task.total_found if task else 0,
+                    "total_saved": task.total_saved if task else 0,
+                    "error_message": task.error_message if task else "crawl did not return a task",
+                    "attempts": attempts_used,
                 }
             )
-            if task.status != "success":
-                report["errors"].append(f"crawl {keyword} failed: {task.error_message}")
+            if task is None or task.status != "success":
+                report["errors"].append(f"crawl {keyword} failed after {attempts_used} attempt(s): {task.error_message if task else 'no task'}")
 
         try:
             extracted = extract_pending_bid_documents(db, limit=pending_limit, use_vllm=use_vllm)
