@@ -20,9 +20,15 @@ def _normalize_method(payload: ScaffoldQuoteRequest, unit: str | None) -> str:
         return payload.pricing_method
     if payload.fixed_total_price:
         return "总价折算"
-    if unit == "元/吨/天" or (payload.tonnage and payload.rental_days):
+    if payload.tonnage and payload.rental_days:
         return "元/吨/天"
-    if unit == "元/月" or payload.rental_months:
+    if payload.area_m2:
+        return "元/㎡"
+    if payload.rental_months:
+        return "元/月"
+    if unit == "元/吨/天":
+        return "元/吨/天"
+    if unit == "元/月":
         return "元/月"
     return "元/㎡"
 

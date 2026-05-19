@@ -74,7 +74,23 @@ def _run_single_source(
     result = SourceResult(source_name=source.source_name)
 
     try:
-        task = run_public_crawl(db, keyword=keyword)
+        source_config = {
+            "name": source.source_name,
+            "url": source.source_url,
+            "source_type": source.source_type or "real_public_bid",
+            "parser_name": source.parser_name,
+            "enabled": True,
+            "province": source.province,
+            "city": source.city,
+            "parser_status": source.parser_status,
+            "requires_browser": source.requires_browser,
+        }
+        task = run_public_crawl(
+            db,
+            keyword=keyword,
+            source_configs=[source_config],
+            include_default_sources=False,
+        )
         elapsed = int((time.monotonic() - started) * 1000)
 
         if task.status == "success":
@@ -82,6 +98,8 @@ def _run_single_source(
                 result.status = "success"
             else:
                 result.status = "no_match"
+            if task.error_message:
+                result.blocked_reason = f"fallback_used: {task.error_message}"[:64]
         elif task.error_message and any(
             kw in (task.error_message or "") for kw in ("blocked_403", "captcha", "login", "paid")
         ):
@@ -176,15 +194,30 @@ def run(config: PlanConfig) -> RunReport:
         source_results: list[SourceResult] = []
 
         for source in all_sources:
+            attempts: list[SourceResult] = []
             sr = SourceResult(source_name=source.source_name, status="pending")
             for keyword in keywords:
                 if source.parser_name:
                     result = _run_single_source(db, source, keyword, config.use_vllm, source)
-                    sr = result
-                    if result.status in ("blocked", "failed"):
-                        break  # Stop this source on block/fail
+                    attempts.append(result)
+                    if result.status == "success":
+                        sr = result
+                        break
                 else:
                     sr.status = "skipped"
+                    break
+            if attempts and sr.status != "success":
+                no_match = [item for item in attempts if item.status == "no_match"]
+                blocked = [item for item in attempts if item.status == "blocked"]
+                failed = [item for item in attempts if item.status == "failed"]
+                if no_match:
+                    sr = no_match[-1]
+                elif blocked:
+                    sr = blocked[-1]
+                elif failed:
+                    sr = failed[-1]
+                else:
+                    sr = attempts[-1]
             source_results.append(sr)
             _update_crawl_run_source(db, run_id, source.source_name, sr)
 
@@ -204,10 +237,6 @@ def run(config: PlanConfig) -> RunReport:
         notif_status = _send_notification(report, config.no_wecom)
         report.notification_status = notif_status
 
-        # Write report
-        report_path = write_report(report)
-        report.report_path = report_path
-
         # Update crawl_run
         finished = datetime.now(UTC)
         crawl_run.status = (
@@ -219,14 +248,17 @@ def run(config: PlanConfig) -> RunReport:
         crawl_run.total_found = report.total_found
         crawl_run.total_saved = report.total_saved
         crawl_run.notification_status = notif_status
-        crawl_run.report_path = report_path
         if report.errors:
             crawl_run.error_message = "; ".join(report.errors)[:2000]
-        db.commit()
-
         report.finished_at = finished.isoformat()
         report.duration_seconds = (finished - started).total_seconds()
         report.status = crawl_run.status
+
+        # Write report after final status/duration are known.
+        report_path = write_report(report)
+        report.report_path = report_path
+        crawl_run.report_path = report_path
+        db.commit()
 
     return report
 

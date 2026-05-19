@@ -196,13 +196,75 @@ class GuangdongPublicResourceTradingCrawler(PublicBidCrawler):
 
     source_name = "广东省公共资源交易平台"
     base_url = "https://ygp.gdzwfw.gov.cn"
+    api_url = "https://ygp.gdzwfw.gov.cn/ggzy-portal/search/v2/items"
 
     def search(self, keyword: str) -> list[RawBidDocument]:
-        with httpx.Client(headers={"User-Agent": USER_AGENT}, timeout=12, follow_redirects=True) as client:
-            response = client.get(self.base_url)
+        payload = {
+            "type": "trading-type",
+            "openConvert": False,
+            "keyword": keyword,
+            "siteCode": "44",
+            "secondType": "A",
+            "tradingProcess": "",
+            "thirdType": "[]",
+            "projectType": "",
+            "publishStartTime": "",
+            "publishEndTime": "",
+            "pageNo": 1,
+            "pageSize": 10,
+        }
+        headers = {"User-Agent": USER_AGENT, "Referer": "https://ygp.gdzwfw.gov.cn/ggzy-portal/"}
+        with httpx.Client(headers=headers, timeout=12, follow_redirects=True) as client:
+            response = client.post(self.api_url, json=payload)
             _raise_if_blocked(response)
             response.raise_for_status()
-            return self.parse_search_results(response.text, keyword=keyword, base_url=str(response.url))
+            return self.parse_api_response(response.text, keyword=keyword)
+
+    def parse_api_response(self, body: str | dict, keyword: str) -> list[RawBidDocument]:
+        payload = json.loads(body) if isinstance(body, str) else body
+        items = ((payload or {}).get("data") or {}).get("pageData") or []
+        docs: list[RawBidDocument] = []
+        for item in items:
+            title = _clean_text(str(item.get("noticeTitle") or ""))
+            if not title or not _is_scaffold_related(title, keyword):
+                continue
+            publish_date = _parse_date(str(item.get("publishDate") or ""))
+            notice_id = item.get("noticeId") or item.get("docId") or ""
+            project_code = item.get("projectCode") or ""
+            trading_type = item.get("noticeSecondType") or "A"
+            trading_process = item.get("tradingProcess") or ""
+            edition = item.get("edition") or "v3"
+            if project_code and trading_process:
+                source_url = f"{self.base_url}/ggzy-portal/#/44/jygg/{edition}/{project_code}/{trading_type}/{trading_process}"
+            else:
+                source_url = f"{self.base_url}/ggzy-portal/#/44/jygg/v0/{notice_id}"
+            content = "\n".join(
+                str(value)
+                for value in (
+                    title,
+                    item.get("noticeSecondTypeDesc"),
+                    item.get("noticeThirdTypeDesc"),
+                    item.get("projectTypeName"),
+                    item.get("siteName"),
+                    item.get("regionName"),
+                    item.get("datasetName"),
+                    item.get("pubServicePlat"),
+                    item.get("publishDate"),
+                )
+                if value
+            )
+            docs.append(
+                RawBidDocument(
+                    source_name=self.source_name,
+                    source_url=source_url,
+                    title=title[:512],
+                    publish_date=publish_date,
+                    region=_detect_province_or_region(content) or "广东",
+                    html_content=json.dumps(item, ensure_ascii=False),
+                    text_content=content,
+                )
+            )
+        return _dedupe_docs(docs)
 
     def parse_search_results(self, html: str, keyword: str, base_url: str | None = None) -> list[RawBidDocument]:
         return _parse_public_bid_links(
@@ -433,14 +495,15 @@ def _clean_text(text: str) -> str:
 
 
 def _parse_date(text: str) -> date | None:
-    match = re.search(r"(20\d{2})[-年./](\d{1,2})[-月./](\d{1,2})", text)
-    if not match:
-        return None
-    year, month, day = map(int, match.groups())
-    try:
-        return date(year, month, day)
-    except ValueError:
-        return None
+    # Require visible date separators so amounts such as 3200000元 do not get
+    # misread as an invalid 2000-0-0 date before the real publish date.
+    for match in re.finditer(r"(20\d{2})[-年./](\d{1,2})[-月./](\d{1,2})", text):
+        year, month, day = map(int, match.groups())
+        try:
+            return date(year, month, day)
+        except ValueError:
+            continue
+    return None
 
 
 def _parse_price(text: str) -> Decimal | None:
