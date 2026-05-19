@@ -23,6 +23,8 @@ def post_daily_briefing(
 
 @router.get("/logs")
 def get_notification_logs(page: int = Query(default=1, ge=1), page_size: int = Query(default=20, ge=1, le=100), db: Session = Depends(get_db)):
+    from sqlalchemy import func
+    total = db.scalar(select(func.count()).select_from(NotificationLog)) or 0
     stmt = select(NotificationLog).order_by(NotificationLog.created_at.desc(), NotificationLog.id.desc())
     items = list(db.scalars(stmt.offset((page - 1) * page_size).limit(page_size)))
     return {
@@ -40,6 +42,7 @@ def get_notification_logs(page: int = Query(default=1, ge=1), page_size: int = Q
             }
             for item in items
         ],
+        "total": total,
         "page": page,
         "page_size": page_size,
     }

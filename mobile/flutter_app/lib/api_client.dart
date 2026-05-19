@@ -189,6 +189,110 @@ class ApiClient {
     return ScaffoldQuoteResult.fromJson(res.data as Map<String, dynamic>);
   }
 
+  // ---- Optional app/backend operational APIs ----
+
+  Future<CrawlDashboardSummary> crawlDashboard() async =>
+      CrawlDashboardSummary.fromJson(
+        (await dio.get('/api/crawl/dashboard')).data as Map<String, dynamic>,
+      );
+
+  Future<SourceLibraryStats> sourceLibraryStats() async =>
+      SourceLibraryStats.fromJson(
+        (await dio.get('/api/source-library/stats')).data as Map<String, dynamic>,
+      );
+
+  Future<PageResult<SourceLibraryItem>> sourceLibrary({
+    String? province,
+    String? sourceLevel,
+    String? sourceType,
+    String? parserStatus,
+    bool? enabled,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final offset = (page - 1) * pageSize;
+    final res = await dio.get(
+      '/api/source-library',
+      queryParameters: _clean({
+        'province': province,
+        'source_level': sourceLevel,
+        'source_type': sourceType,
+        'parser_status': parserStatus,
+        'enabled': enabled,
+        'limit': pageSize,
+        'offset': offset,
+      }),
+    );
+    final data = Map<String, dynamic>.from(res.data as Map);
+    return PageResult.fromJson({
+      'items': data['items'] ?? const [],
+      'total': data['total'] ?? 0,
+      'page': page,
+      'page_size': pageSize,
+    }, SourceLibraryItem.fromJson);
+  }
+
+  Future<PageResult<Attachment>> attachments({
+    String? parseStatus,
+    String? fileType,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final res = await dio.get(
+      '/api/attachments',
+      queryParameters: _clean({
+        'parse_status': parseStatus,
+        'file_type': fileType,
+        'page': page,
+        'page_size': pageSize,
+      }),
+    );
+    return PageResult.fromJson(
+      res.data as Map<String, dynamic>,
+      Attachment.fromJson,
+    );
+  }
+
+  Future<PageResult<ManagedBrowserRun>> managedBrowserRuns({
+    String? sourceName,
+    String? keyword,
+    String? blockedReason,
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final res = await dio.get(
+      '/api/managed-browser/runs',
+      queryParameters: _clean({
+        'source_name': sourceName,
+        'keyword': keyword,
+        'blocked_reason': blockedReason,
+        'page': page,
+        'page_size': pageSize,
+      }),
+    );
+    return PageResult.fromJson(
+      res.data as Map<String, dynamic>,
+      ManagedBrowserRun.fromJson,
+    );
+  }
+
+  Future<PageResult<NotificationLog>> notificationLogs({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final res = await dio.get(
+      '/api/notifications/logs',
+      queryParameters: _clean({'page': page, 'page_size': pageSize}),
+    );
+    final data = Map<String, dynamic>.from(res.data as Map);
+    return PageResult.fromJson({
+      'items': data['items'] ?? const [],
+      'total': data['total'] ?? (data['items'] as List?)?.length ?? 0,
+      'page': data['page'] ?? page,
+      'page_size': data['page_size'] ?? pageSize,
+    }, NotificationLog.fromJson);
+  }
+
   Map<String, dynamic> _clean(Map<String, dynamic> input) => Map.fromEntries(
     input.entries.where(
       (e) => e.value != null && e.value.toString().isNotEmpty,

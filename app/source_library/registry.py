@@ -94,8 +94,8 @@ def _entries() -> list[SourceEntry]:
     return _entries_cache or []
 
 
-def get_sources(query: SourceQuery | None = None) -> list[SourceEntry]:
-    """Get sources filtered by query parameters."""
+def _filtered_sources(query: SourceQuery | None = None) -> list[SourceEntry]:
+    """Get sources filtered by query parameters before pagination."""
     all_entries = _entries()
     if query is None:
         return all_entries
@@ -123,7 +123,14 @@ def get_sources(query: SourceQuery | None = None) -> list[SourceEntry]:
             return False
         return True
 
-    filtered = [e for e in all_entries if _match(e)]
+    return [e for e in all_entries if _match(e)]
+
+
+def get_sources(query: SourceQuery | None = None) -> list[SourceEntry]:
+    """Get sources filtered by query parameters."""
+    filtered = _filtered_sources(query)
+    if query is None:
+        return filtered
     return filtered[query.offset : query.offset + query.limit]
 
 
@@ -140,7 +147,7 @@ def get_source(name_or_index: str | int) -> SourceEntry | None:
 
 
 def get_source_count(query: SourceQuery | None = None) -> int:
-    return len(get_sources(query))
+    return len(_filtered_sources(query))
 
 
 def get_stats() -> SourceLibraryStats:

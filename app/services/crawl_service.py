@@ -599,6 +599,7 @@ def _source_library_stats() -> dict:
             "manual_import_sources": stats.manual_import_sources,
             "authorized_api_sources": stats.authorized_api_sources,
             "by_parser_status": stats.by_parser_status,
+            "by_acquisition_method": stats.by_acquisition_method,
         }
     except Exception:
         return {}

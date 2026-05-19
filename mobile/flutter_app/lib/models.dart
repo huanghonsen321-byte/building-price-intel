@@ -345,6 +345,14 @@ double _asDouble(Object? value, {double fallback = 0}) => value is num
 double? _asNullableDouble(Object? value) =>
     value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '');
 DateTime? _asDate(Object? value) => DateTime.tryParse(value?.toString() ?? '');
+bool _asBool(Object? value) {
+  if (value is bool) return value;
+  final text = value?.toString().toLowerCase();
+  return text == 'true' || text == '1' || text == 'yes';
+}
+Map<String, int> _asIntMap(Object? value) =>
+    (value as Map?)?.map((key, val) => MapEntry(key.toString(), _asInt(val))) ??
+    const {};
 
 // ---------------------------------------------------------------------------
 // Crawl orchestrator models
@@ -398,6 +406,8 @@ class CrawlRun {
   final String? notificationStatus;
   final String? errorMessage;
   final DateTime? createdAt;
+  bool get hasDuplicateSkippedSignal =>
+      status != 'failed' && errorMessage == null && totalFound > 0 && totalSaved == 0;
   factory CrawlRun.fromJson(Map<String, dynamic> json) => CrawlRun(
     id: _asInt(json['id']),
     runType: json['run_type']?.toString() ?? '',
@@ -465,5 +475,307 @@ class CrawlRunDetail {
             .whereType<Map<String, dynamic>>()
             .map(CrawlRunSource.fromJson)
             .toList(),
+      );
+}
+
+
+class SourceLibraryStats {
+  const SourceLibraryStats({
+    required this.totalSources,
+    required this.enabledSources,
+    required this.parserReadySources,
+    required this.blockedSources,
+    required this.nationalSources,
+    required this.guangdongSources,
+    required this.provinceSourceCount,
+    required this.citySourceCount,
+    required this.priceSourceCount,
+    required this.attachmentSourceCount,
+    required this.manualImportSources,
+    required this.authorizedApiSources,
+    required this.byAcquisitionMethod,
+    required this.byParserStatus,
+  });
+  final int totalSources;
+  final int enabledSources;
+  final int parserReadySources;
+  final int blockedSources;
+  final int nationalSources;
+  final int guangdongSources;
+  final int provinceSourceCount;
+  final int citySourceCount;
+  final int priceSourceCount;
+  final int attachmentSourceCount;
+  final int manualImportSources;
+  final int authorizedApiSources;
+  final Map<String, int> byAcquisitionMethod;
+  final Map<String, int> byParserStatus;
+  factory SourceLibraryStats.fromJson(Map<String, dynamic> json) =>
+      SourceLibraryStats(
+        totalSources: _asInt(json['total_sources']),
+        enabledSources: _asInt(json['enabled_sources']),
+        parserReadySources: _asInt(json['parser_ready_sources']),
+        blockedSources: _asInt(json['blocked_sources']),
+        nationalSources: _asInt(json['national_sources']),
+        guangdongSources: _asInt(json['guangdong_sources']),
+        provinceSourceCount: _asInt(json['province_source_count']),
+        citySourceCount: _asInt(json['city_source_count']),
+        priceSourceCount: _asInt(json['price_source_count']),
+        attachmentSourceCount: _asInt(json['attachment_source_count']),
+        manualImportSources: _asInt(json['manual_import_sources']),
+        authorizedApiSources: _asInt(json['authorized_api_sources']),
+        byAcquisitionMethod: _asIntMap(json['by_acquisition_method']),
+        byParserStatus: _asIntMap(json['by_parser_status']),
+      );
+}
+
+class SourceLibraryItem {
+  const SourceLibraryItem({
+    required this.name,
+    required this.url,
+    required this.domain,
+    required this.sourceLevel,
+    required this.sourceType,
+    required this.acquisitionMethod,
+    required this.keywords,
+    required this.parserName,
+    required this.enabled,
+    required this.parserStatus,
+    required this.requiresBrowser,
+    required this.requiresManualReview,
+    required this.reliabilityScore,
+    required this.province,
+    required this.city,
+    required this.publicApiFound,
+    required this.publicPageReachable,
+    required this.lastSuccessAt,
+    required this.lastBlockedReason,
+    required this.tags,
+    required this.notes,
+  });
+  final String name;
+  final String url;
+  final String domain;
+  final String sourceLevel;
+  final String sourceType;
+  final String acquisitionMethod;
+  final List<String> keywords;
+  final String? parserName;
+  final bool enabled;
+  final String parserStatus;
+  final bool requiresBrowser;
+  final bool requiresManualReview;
+  final double reliabilityScore;
+  final String? province;
+  final String? city;
+  final bool publicApiFound;
+  final bool publicPageReachable;
+  final DateTime? lastSuccessAt;
+  final String? lastBlockedReason;
+  final List<String> tags;
+  final String notes;
+  factory SourceLibraryItem.fromJson(Map<String, dynamic> json) =>
+      SourceLibraryItem(
+        name: json['name']?.toString() ?? '',
+        url: json['url']?.toString() ?? '',
+        domain: json['domain']?.toString() ?? '',
+        sourceLevel: json['source_level']?.toString() ?? '',
+        sourceType: json['source_type']?.toString() ?? '',
+        acquisitionMethod: json['acquisition_method']?.toString() ?? '',
+        keywords: _asStringList(json['keywords']),
+        parserName: _asString(json['parser_name']),
+        enabled: _asBool(json['enabled']),
+        parserStatus: json['parser_status']?.toString() ?? '',
+        requiresBrowser: _asBool(json['requires_browser']),
+        requiresManualReview: _asBool(json['requires_manual_review']),
+        reliabilityScore: _asDouble(json['reliability_score']),
+        province: _asString(json['province']),
+        city: _asString(json['city']),
+        publicApiFound: _asBool(json['public_api_found']),
+        publicPageReachable: _asBool(json['public_page_reachable']),
+        lastSuccessAt: _asDate(json['last_success_at']),
+        lastBlockedReason: _asString(json['last_blocked_reason']),
+        tags: _asStringList(json['tags']),
+        notes: json['notes']?.toString() ?? '',
+      );
+}
+
+class CrawlDashboardSummary {
+  const CrawlDashboardSummary({
+    required this.blockedSourceCount,
+    required this.blockedReasonDistribution,
+    required this.availableSourceCount,
+    required this.todaySuccessfulSourceCount,
+    required this.guangdongSuccessRate,
+    required this.nationalSuccessRate,
+    required this.sourceLibraryStats,
+  });
+  final int blockedSourceCount;
+  final Map<String, int> blockedReasonDistribution;
+  final int availableSourceCount;
+  final int todaySuccessfulSourceCount;
+  final double guangdongSuccessRate;
+  final double nationalSuccessRate;
+  final SourceLibraryStats sourceLibraryStats;
+  factory CrawlDashboardSummary.fromJson(Map<String, dynamic> json) =>
+      CrawlDashboardSummary(
+        blockedSourceCount: _asInt(json['blocked_source_count']),
+        blockedReasonDistribution: _asIntMap(json['blocked_reason_distribution']),
+        availableSourceCount: _asInt(json['available_source_count']),
+        todaySuccessfulSourceCount: _asInt(json['today_successful_source_count']),
+        guangdongSuccessRate: _asDouble(json['guangdong_success_rate']),
+        nationalSuccessRate: _asDouble(json['national_success_rate']),
+        sourceLibraryStats: SourceLibraryStats.fromJson(
+          (json['source_library_stats'] as Map?)?.map((k, v) => MapEntry(k.toString(), v)) ?? const {},
+        ),
+      );
+}
+
+class Attachment {
+  const Attachment({
+    required this.id,
+    required this.rawDocumentId,
+    required this.sourceUrl,
+    required this.fileUrl,
+    required this.fileName,
+    required this.fileType,
+    required this.fileSize,
+    required this.localPath,
+    required this.parseStatus,
+    required this.errorMessage,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  final int id;
+  final int? rawDocumentId;
+  final String sourceUrl;
+  final String fileUrl;
+  final String fileName;
+  final String fileType;
+  final int? fileSize;
+  final String? localPath;
+  final String parseStatus;
+  final String? errorMessage;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
+  factory Attachment.fromJson(Map<String, dynamic> json) => Attachment(
+    id: _asInt(json['id']),
+    rawDocumentId: _asNullableInt(json['raw_document_id']),
+    sourceUrl: json['source_url']?.toString() ?? '',
+    fileUrl: json['file_url']?.toString() ?? '',
+    fileName: json['file_name']?.toString() ?? '',
+    fileType: json['file_type']?.toString() ?? '',
+    fileSize: _asNullableInt(json['file_size']),
+    localPath: _asString(json['local_path']),
+    parseStatus: json['parse_status']?.toString() ?? '',
+    errorMessage: _asString(json['error_message']),
+    createdAt: _asDate(json['created_at']),
+    updatedAt: _asDate(json['updated_at']),
+  );
+}
+
+class NotificationLog {
+  const NotificationLog({
+    required this.id,
+    required this.eventType,
+    required this.channel,
+    required this.target,
+    required this.status,
+    required this.message,
+    required this.errorMessage,
+    required this.retryCount,
+    required this.createdAt,
+  });
+  final int id;
+  final String eventType;
+  final String channel;
+  final String? target;
+  final String status;
+  final String? message;
+  final String? errorMessage;
+  final int retryCount;
+  final DateTime? createdAt;
+  factory NotificationLog.fromJson(Map<String, dynamic> json) => NotificationLog(
+    id: _asInt(json['id']),
+    eventType: json['event_type']?.toString() ?? '',
+    channel: json['channel']?.toString() ?? '',
+    target: _asString(json['target']),
+    status: json['status']?.toString() ?? '',
+    message: _asString(json['message']),
+    errorMessage: _asString(json['error_message']),
+    retryCount: _asInt(json['retry_count']),
+    createdAt: _asDate(json['created_at']),
+  );
+}
+
+class ManagedBrowserRun {
+  const ManagedBrowserRun({
+    required this.id,
+    required this.sourceName,
+    required this.keyword,
+    required this.mode,
+    required this.startedAt,
+    required this.endedAt,
+    required this.visitedUrls,
+    required this.downloadedFiles,
+    required this.recordsCreated,
+    required this.attachmentsCreated,
+    required this.blockedReason,
+    required this.errorMessage,
+    required this.createdAt,
+  });
+  final int id;
+  final String sourceName;
+  final String keyword;
+  final String mode;
+  final DateTime? startedAt;
+  final DateTime? endedAt;
+  final List<String> visitedUrls;
+  final List<String> downloadedFiles;
+  final int recordsCreated;
+  final int attachmentsCreated;
+  final String? blockedReason;
+  final String? errorMessage;
+  final DateTime? createdAt;
+  factory ManagedBrowserRun.fromJson(Map<String, dynamic> json) => ManagedBrowserRun(
+    id: _asInt(json['id']),
+    sourceName: json['source_name']?.toString() ?? '',
+    keyword: json['keyword']?.toString() ?? '',
+    mode: json['mode']?.toString() ?? '',
+    startedAt: _asDate(json['started_at']),
+    endedAt: _asDate(json['ended_at']),
+    visitedUrls: _asStringList(json['visited_urls']),
+    downloadedFiles: _asStringList(json['downloaded_files']),
+    recordsCreated: _asInt(json['records_created']),
+    attachmentsCreated: _asInt(json['attachments_created']),
+    blockedReason: _asString(json['blocked_reason']),
+    errorMessage: _asString(json['error_message']),
+    createdAt: _asDate(json['created_at']),
+  );
+}
+
+class RegionalPriceItem {
+  const RegionalPriceItem({
+    required this.province,
+    required this.city,
+    required this.productName,
+    required this.avgPrice,
+    required this.sampleCount,
+    required this.latestDate,
+  });
+  final String province;
+  final String? city;
+  final String productName;
+  final double avgPrice;
+  final int sampleCount;
+  final DateTime? latestDate;
+  factory RegionalPriceItem.fromJson(Map<String, dynamic> json) =>
+      RegionalPriceItem(
+        province: json['province']?.toString() ?? '',
+        city: _asString(json['city']),
+        productName: json['product_name']?.toString() ?? '',
+        avgPrice: _asDouble(json['avg_price'] ?? json['price']),
+        sampleCount: _asInt(json['sample_count'] ?? json['count']),
+        latestDate: _asDate(json['latest_date'] ?? json['date']),
       );
 }

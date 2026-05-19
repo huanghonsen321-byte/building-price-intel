@@ -1,16 +1,27 @@
 # Flutter API Contract
 
-## Base URLs
+本文档记录当前后端 FastAPI 路由、Flutter `ApiClient` 已封装接口、Dart model 对应关系和移动端解析注意事项。
+
+审计时间：2026-05-19
+分支：`test/app-backend-api-contract-audit`
+
+## Base URL
 
 - Android 模拟器访问电脑本机后端：`http://10.0.2.2:9000`
-- 本机浏览器访问后端：`http://127.0.0.1:9000`
-- Android 真机调试访问电脑后端：使用电脑局域网 IP，例如 `http://192.168.x.x:9000`
+- 本机调试 / 桌面浏览器：`http://127.0.0.1:9000`
+- Android 真机调试：使用电脑局域网 IP，例如 `http://192.168.x.x:9000`
 
-> 后端已允许本机 Web 调试 CORS 来源：`http://localhost:3000`、`http://127.0.0.1:3000`、`http://localhost:5173`、`http://127.0.0.1:5173`。
+Flutter 默认逻辑：
 
-## 通用分页返回
+- Android 非 Web：`http://10.0.2.2:9000`
+- 其他平台：`http://127.0.0.1:9000`
+- 可通过 `--dart-define=API_BASE_URL=http://<host>:9000` 覆盖。
 
-以下列表接口统一返回：
+## 通用约定
+
+### 分页格式
+
+大部分列表接口返回：
 
 ```json
 {
@@ -21,38 +32,110 @@
 }
 ```
 
-Dart 建议：
+Flutter 对应：`PageResult<T>`。
+
+特殊情况：
+
+- `GET /api/source-library` 后端返回 `items/total/limit/offset`，Flutter `ApiClient.sourceLibrary()` 会转换为 `PageResult<SourceLibraryItem>`。
+- `GET /api/notifications/logs` 返回 `items/total/page/page_size`。
+
+### Query 参数
+
+中文 query 参数必须使用 Dio `queryParameters` 或 `Uri` 编码，不要手拼 URL。
+
+示例：
 
 ```dart
-class PageResult<T> {
-  final List<T> items;
-  final int total;
-  final int page;
-  final int pageSize;
-}
+await dio.get('/api/scaffold/bids', queryParameters: {
+  'province': '广东',
+  'review_status': 'pending',
+  'page': 1,
+  'page_size': 20,
+});
 ```
 
-## GET `/api/health`
+### Error state
 
-返回字段：
+后端不可用、接口 4xx/5xx 或网络超时时，Flutter 页面应通过 `LoadState` 显示 error state，并允许刷新重试。
 
-- `status`: 服务状态，正常为 `ok`
-- `service`: 服务名
+### Local-only / auth 注意
 
-## GET `/api/prices`
+当前 APP 面向本地工作站和受信任局域网调试。`/api/crawl/*`、`/api/source-library/*`、`/api/attachments/*`、`/api/managed-browser/*`、`/api/notifications/*` 属于运维/内部接口，当前后端没有登录鉴权；不要直接暴露到公网。若未来部署到公网或多人使用，需要先增加认证、权限和敏感字段脱敏。
 
-参数：
+### duplicate skipped 语义
 
-- `category`: 价格分类，例如 `steel`、`scrap`、`scaffold`
-- `region`: 区域，例如 `华北`
-- `city`: 城市，例如 `北京`
-- `product_name`: 产品名模糊搜索，例如 `螺纹钢`
-- `date_from`: 起始日期，`YYYY-MM-DD`
-- `date_to`: 结束日期，`YYYY-MM-DD`
-- `page`: 页码，默认 `1`
-- `page_size`: 每页条数，默认 `20`，最大 `100`
+自动采集结果中：
 
-`items` 返回字段：
+- `total_found > 0`
+- `total_saved == 0`
+
+通常表示发现了公告，但正式库已有相同 URL，被去重跳过，不一定是失败。Flutter model 使用 `CrawlRun.hasDuplicateSkippedSignal` 标记该状态；该 getter 还要求 `status != 'failed'` 且 `error_message == null`，避免把失败 run 误判为去重。
+
+## Flutter 已用 / 已封装接口
+
+| 功能 | Method | Path | ApiClient 方法 | Dart model |
+|---|---:|---|---|---|
+| 健康检查 | GET | `/api/health` | `health()` | `HealthStatus` |
+| 今日价格 | GET | `/api/prices/today` | `todayPrices()` | `List<PriceDaily>` |
+| 今日价格摘要 | GET | `/api/prices/today/summary` | `todaySummary()` | `TodayPriceSummary` |
+| 价格列表 | GET | `/api/prices` | `prices()` | `PageResult<PriceDaily>` |
+| 价格趋势 | GET | `/api/prices/trends` | `trends()` | `List<PriceTrendPoint>` |
+| 脚手架案例 | GET | `/api/scaffold/bids` | `scaffoldBids()` | `PageResult<ScaffoldBidCase>` |
+| 案例复核 | POST | `/api/scaffold/bids/{case_id}/review` | `reviewBidCase()` | void |
+| 参考价 | GET | `/api/scaffold/prices/reference` | `scaffoldReferences()` | `PageResult<ScaffoldPriceReference>` |
+| 脚手架报价 | POST | `/api/quote/scaffold/calculate` | `calculateQuote()` | `ScaffoldQuoteResult` |
+| 采集 Dashboard | GET | `/api/crawl/dashboard` | `crawlDashboard()` | `CrawlDashboardSummary` |
+| 自动爬虫健康 | GET | `/api/crawl-orchestrator/health` | `crawlOrchestratorHealth()` | `CrawlOrchestratorHealth` |
+| 自动爬虫失败源 | GET | `/api/crawl-orchestrator/failures` | `crawlOrchestratorFailures()` | `List<CrawlRunSource>` |
+| 自动爬虫历史 | GET | `/api/crawl-orchestrator/runs` | `crawlOrchestratorRuns()` | `PageResult<CrawlRun>` |
+| 自动爬虫详情 | GET | `/api/crawl-orchestrator/runs/{id}` | `crawlOrchestratorRunDetail()` | `CrawlRunDetail` |
+| 自动爬虫最新 | GET | `/api/crawl-orchestrator/latest` | `crawlOrchestratorLatest()` | `CrawlRunDetail` |
+| 资料库统计 | GET | `/api/source-library/stats` | `sourceLibraryStats()` | `SourceLibraryStats` |
+| 资料库列表 | GET | `/api/source-library` | `sourceLibrary()` | `PageResult<SourceLibraryItem>` |
+| 附件列表 | GET | `/api/attachments` | `attachments()` | `PageResult<Attachment>` |
+| 托管浏览器运行 | GET | `/api/managed-browser/runs` | `managedBrowserRuns()` | `PageResult<ManagedBrowserRun>` |
+| 通知日志 | GET | `/api/notifications/logs` | `notificationLogs()` | `PageResult<NotificationLog>` |
+
+当前未封装且 APP 未调用：
+
+- `GET /api/scaffold/bids/{case_id}`
+- `POST /api/scaffold/bids/extract-pending`
+- `POST /api/crawl/run`
+- `GET /api/crawl/tasks`
+- `POST /api/crawl-orchestrator/run`
+- `GET /api/source-library/{source_id}`
+- `POST /api/source-library/validate`
+- `POST /api/source-library/import`
+- `POST /api/source-library/{source_id}/enable`
+- `POST /api/source-library/{source_id}/disable`
+- `GET /api/attachments/{attachment_id}`
+- `POST /api/attachments/parse-pending`
+- `GET /api/managed-browser/runs/{run_id}`
+- `POST /api/notifications/daily-briefing/send`
+
+当前不存在且 Flutter 不应调用：
+
+- `GET /api/pricing/regional-prices`
+
+## 接口详情
+
+### GET `/api/health`
+
+响应：
+
+```json
+{"status":"ok","service":"building-price-intel"}
+```
+
+Model：`HealthStatus`
+
+字段：`status`, `service`。
+
+### GET `/api/prices/today`
+
+响应：`PriceDaily[]`。
+
+`PriceDaily` 字段：
 
 - `id`
 - `date`
@@ -68,199 +151,293 @@ class PageResult<T> {
 - `tax_included`
 - `source_name`
 - `source_url`
-- `updated_at`
-- `created_at`
 
-Dart model 建议字段：
+### GET `/api/prices/today/summary`
 
-```dart
-class PriceDaily {
-  final int id;
-  final DateTime date;
-  final String category;
-  final String region;
-  final String? city;
-  final String productName;
-  final String? spec;
-  final String? material;
-  final String unit;
-  final double price;
-  final double? changeValue;
-  final bool taxIncluded;
-  final String sourceName;
-  final String? sourceUrl;
+响应示例：
+
+```json
+{
+  "date": "2026-05-19",
+  "total_records": 12,
+  "summary_text": "今日价格样本 12 条",
+  "regions": {"广东": {"count": 5}},
+  "anomalies": [],
+  "updated_at": "2026-05-19T12:00:00"
 }
 ```
 
-## GET `/api/prices/today`
+Model：`TodayPriceSummary`
 
-返回最新日期的价格数组，字段同 `PriceDaily`。该接口不分页。
+字段：`date`, `total_records`, `summary_text`, `regions`, `anomalies`, `updated_at`。
 
-## GET `/api/prices/trends`
+### GET `/api/prices`
 
 参数：
 
-- `category`: 默认 `steel`
-- `product_name`: 产品名精确筛选
-- `days`: 天数，默认 `30`，范围 `1-365`
-
-返回数组字段：
-
-- `date`
-- `price`
-- `product_name`
+- `category`
 - `region`
 - `city`
-- `unit`
+- `product_name`
+- `page`
+- `page_size`
 
-## GET `/api/scaffold/bids`
+响应：`PageResult<PriceDaily>`。
+
+### GET `/api/prices/trends`
 
 参数：
 
-- `keyword`: 项目名、采购人、中标人、服务范围模糊搜索
-- `province`: 省份
-- `city`: 城市
-- `scaffold_type`: 脚手架类型，例如 `盘扣`
-- `procurement_type`: 采购类型，例如 `租赁`
-- `review_status`: 复核状态，例如 `pending`、`approved`、`rejected`
-- `date_from`: 公告起始日期，`YYYY-MM-DD`
-- `date_to`: 公告结束日期，`YYYY-MM-DD`
-- `page`: 页码，默认 `1`
-- `page_size`: 每页条数，默认 `20`，最大 `100`
+- `category`，默认 `steel`
+- `product_name`
+- `days`
 
-`items` 返回字段：
+响应：`PriceTrendPoint[]`。
+
+字段：`date`, `price`, `product_name`, `region`, `city`, `unit`。
+
+### GET `/api/scaffold/bids`
+
+参数：
+
+- `keyword`
+- `province`
+- `city`
+- `scaffold_type`
+- `procurement_type`
+- `review_status`
+- `page`
+- `page_size`
+
+响应：`PageResult<ScaffoldBidCase>`。
+
+`ScaffoldBidCase` 字段：
 
 - `id`
-- `raw_document_id`
 - `project_name`
 - `province`
 - `city`
-- `district`
 - `buyer`
-- `agency`
 - `winner`
 - `bid_amount`
-- `announcement_type`
 - `scaffold_type`
 - `procurement_type`
-- `service_scope`
-- `duration_text`
-- `quantity_text`
 - `area_m2`
 - `tonnage`
 - `rental_days`
-- `pricing_method`
 - `source_url`
 - `publish_date`
-- `ai_summary`
-- `extraction_confidence`
 - `review_status`
-- `created_at`
-- `updated_at`
+- `service_scope`
+- `ai_summary`
+- `missing_fields`
+- `raw_evidence_snippets`
+- `extraction_confidence`
 
-Dart model 建议字段：
+请求示例：
 
-```dart
-class ScaffoldBidCase {
-  final int id;
-  final String projectName;
-  final String? province;
-  final String? city;
-  final String? buyer;
-  final String? winner;
-  final double? bidAmount;
-  final String? scaffoldType;
-  final String? procurementType;
-  final double? areaM2;
-  final double? tonnage;
-  final int? rentalDays;
-  final String sourceUrl;
-  final DateTime? publishDate;
-  final String reviewStatus;
-}
+```bash
+curl -sS --get http://127.0.0.1:9000/api/scaffold/bids \
+  --data-urlencode 'province=广东' \
+  --data 'review_status=pending' \
+  --data 'page=1' \
+  --data 'page_size=20'
 ```
 
-## GET `/api/scaffold/bids/{case_id}`
+### POST `/api/scaffold/bids/{case_id}/review`
 
-返回单个脚手架招投标案例，字段同 `ScaffoldBidCase`，并包含：
+请求：
 
-- `price_references`: 参考价数组，字段见下方 `ScaffoldPriceReference`
+```json
+{"status":"approved","reviewer_note":"字段已确认"}
+```
 
-## GET `/api/scaffold/prices/reference`
+Flutter：`reviewBidCase()`。
+
+### GET `/api/scaffold/prices/reference`
 
 参数：
 
-- `region`: 地区或城市，例如 `呼和浩特`
-- `scaffold_type`: 脚手架类型，例如 `盘扣`
-- `calculated_unit`: 折算单位，例如 `元/㎡`、`元/吨/天`、`元/月`
-- `confidence`: 置信度，例如 `high`、`medium`、`low`
-- `page`: 页码，默认 `1`
-- `page_size`: 每页条数，默认 `20`，最大 `100`
-
-`items` 返回字段：
-
-- `id`
-- `bid_case_id`
-- `price_type`
-- `scaffold_type`
 - `region`
+- `scaffold_type`
 - `calculated_unit`
-- `calculated_price`
-- `formula`
 - `confidence`
-- `notes`
-- `created_at`
+- `page`
+- `page_size`
 
-Dart model 建议字段：
+响应：`PageResult<ScaffoldPriceReference>`。
 
-```dart
-class ScaffoldPriceReference {
-  final int id;
-  final int bidCaseId;
-  final String priceType;
-  final String? scaffoldType;
-  final String? region;
-  final String calculatedUnit;
-  final double calculatedPrice;
-  final String formula;
-  final String confidence;
-  final String? notes;
+字段：`id`, `bid_case_id`, `price_type`, `scaffold_type`, `region`, `calculated_unit`, `calculated_price`, `formula`, `confidence`, `notes`。
+
+### POST `/api/quote/scaffold/calculate`
+
+请求示例：
+
+```json
+{
+  "scaffold_type": "盘扣",
+  "region": "广东",
+  "pricing_method": "area",
+  "area_m2": 1000,
+  "rental_days": 30,
+  "setup_dismantle_fee": 3000,
+  "transport_fee": 1000
 }
 ```
 
-## POST `/api/quote/scaffold/calculate`
+响应：`ScaffoldQuoteResult`。
 
-请求字段：
-
-- `scaffold_type`: 脚手架类型，默认 `盘扣`
-- `region`: 地区，可选
-- `area_m2`: 面积，单位 `㎡`，当参考单位为 `元/㎡` 时需要
-- `rental_days`: 租赁天数，当参考单位为 `元/吨/天` 时需要
-- `rental_months`: 租赁月数，当参考单位为 `元/月` 时需要
-- `tonnage`: 吨数，当参考单位为 `元/吨/天` 时需要
-
-返回字段：
+字段：
 
 - `scaffold_type`
 - `region`
+- `pricing_method`
 - `calculated_unit`
 - `reference_price`
-- `estimated_amount`: 估算金额；缺少必要参数时为 `null`
+- `estimated_amount`
+- `unit_area_price`
+- `unit_ton_day_price`
+- `cost_breakdown`
 - `confidence`
-- `formula`: 计算公式或缺少字段说明
+- `formula`
 - `reference_count`
 
-Dart model 建议字段：
+### GET `/api/crawl/dashboard`
 
-```dart
-class ScaffoldQuoteResult {
-  final String scaffoldType;
-  final String? region;
-  final String calculatedUnit;
-  final double referencePrice;
-  final double? estimatedAmount;
-  final String confidence;
-  final String formula;
-  final int referenceCount;
+响应：`CrawlDashboardSummary`。
+
+字段：
+
+- `blocked_source_count`
+- `blocked_reason_distribution`
+- `available_source_count`
+- `today_successful_source_count`
+- `guangdong_success_rate`
+- `national_success_rate`
+- `source_library_stats`
+
+### GET `/api/crawl-orchestrator/health`
+
+响应：`CrawlOrchestratorHealth`。
+
+字段：`total_runs`, `latest_run`, `latest_status`。
+
+### GET `/api/crawl-orchestrator/latest`
+
+响应：`CrawlRunDetail`。
+
+```json
+{
+  "run": {
+    "id": 8,
+    "run_type": "guangdong",
+    "status": "partial_success",
+    "total_sources": 3,
+    "total_found": 8,
+    "total_saved": 0
+  },
+  "sources": []
 }
 ```
+
+如果没有任何历史 run，后端当前返回 404；Flutter 首页对该接口使用 error fallback，不阻断首页其它数据。
+
+### GET `/api/crawl-orchestrator/runs`
+
+响应：`PageResult<CrawlRun>`。
+
+### GET `/api/crawl-orchestrator/runs/{id}`
+
+响应：`CrawlRunDetail`。
+
+### GET `/api/crawl-orchestrator/failures`
+
+响应：`CrawlRunSource[]`。
+
+### GET `/api/source-library/stats`
+
+响应：`SourceLibraryStats`。
+
+字段：
+
+- `total_sources`
+- `enabled_sources`
+- `parser_ready_sources`
+- `blocked_sources`
+- `national_sources`
+- `guangdong_sources`
+- `province_source_count`
+- `city_source_count`
+- `price_source_count`
+- `attachment_source_count`
+- `manual_import_sources`
+- `authorized_api_sources`
+- `by_acquisition_method`
+- `by_parser_status`
+
+### GET `/api/source-library`
+
+参数：`province`, `source_level`, `source_type`, `parser_status`, `enabled`, `limit`, `offset`。
+
+后端响应：`items/total/limit/offset`。
+Flutter 转换为：`PageResult<SourceLibraryItem>`。
+
+### GET `/api/attachments`
+
+参数：`parse_status`, `file_type`, `page`, `page_size`。
+
+响应：`PageResult<Attachment>`。
+
+### GET `/api/managed-browser/runs`
+
+参数：`source_name`, `keyword`, `blocked_reason`, `page`, `page_size`。
+
+响应：`PageResult<ManagedBrowserRun>`。
+
+### GET `/api/notifications/logs`
+
+参数：`page`, `page_size`。
+
+后端响应字段：`items`, `total`, `page`, `page_size`。
+
+响应 item：`NotificationLog`。
+
+## Dart model 安全解析要求
+
+当前 `models.dart` 已按以下规则解析：
+
+- snake_case 后端字段映射为 camelCase Dart 字段。
+- `int/double/string/null` 数字安全解析。
+- 日期字段使用 `DateTime.tryParse`，无效日期返回 `null`。
+- 缺字段不抛异常，使用空字符串、0、null 或 `[]` fallback。
+- 列表字段缺失时默认 `[]`。
+- 字典计数字段通过 `Map<String, int>` 安全转换。
+
+## Contract 测试
+
+后端：`tests/test_app_backend_api_contract.py`
+
+覆盖：
+
+- Flutter API client 中所有路径都存在于 FastAPI routes。
+- 用户关心的 APP 后端路由完整存在。
+- `/api/crawl-orchestrator/latest` 返回 Flutter 需要字段。
+- `/api/source-library/stats` 返回 Flutter 需要字段。
+- `/api/crawl/dashboard` 返回 Flutter 需要字段。
+- `/api/prices/today/summary` 返回 Flutter 需要字段。
+- `/api/scaffold/bids?review_status=pending&page=1&page_size=20` 返回分页结构。
+- `/api/pricing/regional-prices` 当前不存在且 Flutter 不调用。
+- `/api/notifications/logs`、`/api/managed-browser/runs` 返回 APP 可解析结构。
+
+Flutter：`mobile/flutter_app/test/api_model_contract_test.dart`
+
+覆盖：
+
+- `CrawlRun.fromJson`
+- `CrawlRunSource.fromJson`
+- `SourceLibraryStats.fromJson`
+- `TodayPriceSummary.fromJson`
+- `ScaffoldBidCase.fromJson`
+- `RegionalPriceItem.fromJson`
+- duplicate skipped 状态模型解析
+- `CrawlDashboardSummary`, `Attachment`, `NotificationLog`, `ManagedBrowserRun` 缺字段/null 字段安全解析。
