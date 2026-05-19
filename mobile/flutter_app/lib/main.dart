@@ -61,6 +61,9 @@ class _AppShellState extends State<AppShell> {
       _Destination('报价', Icons.calculate, QuotePage(api: api)),
       _Destination('复核', Icons.fact_check, ReviewPage(api: api)),
       _Destination('区域', Icons.map, RegionDistributionPage(api: api)),
+      _Destination('抓取状态', Icons.smart_toy, AutoCrawlDashboardPage(api: api)),
+      _Destination('失败源', Icons.error_outline, CrawlFailuresPage(api: api)),
+      _Destination('运行历史', Icons.history, CrawlRunHistoryPage(api: api)),
     ];
     return Scaffold(
       appBar: AppBar(
@@ -172,11 +175,15 @@ class _HomeDashboardData {
     required this.prices,
     required this.summary,
     required this.importantBids,
+    required this.crawlHealth,
+    required this.latestRunDetail,
   });
   final HealthStatus health;
   final List<PriceDaily> prices;
   final TodayPriceSummary summary;
   final List<ScaffoldBidCase> importantBids;
+  final CrawlOrchestratorHealth? crawlHealth;
+  final CrawlRunDetail? latestRunDetail;
 }
 
 class HomePage extends StatelessWidget {
@@ -189,12 +196,16 @@ class HomePage extends StatelessWidget {
       api.todayPrices(),
       api.todaySummary(),
       api.scaffoldBids(keyword: '脚手架', pageSize: 5),
+      api.crawlOrchestratorHealth().then((v) => v as CrawlOrchestratorHealth?).catchError((_) => null) as Future<Object>,
+      api.crawlOrchestratorLatest().then((v) => v as CrawlRunDetail?).catchError((_) => null) as Future<Object>,
     ]);
     return _HomeDashboardData(
       health: results[0] as HealthStatus,
       prices: results[1] as List<PriceDaily>,
       summary: results[2] as TodayPriceSummary,
       importantBids: (results[3] as PageResult<ScaffoldBidCase>).items,
+      crawlHealth: results[4] as CrawlOrchestratorHealth?,
+      latestRunDetail: results[5] as CrawlRunDetail?,
     );
   }
 
@@ -212,12 +223,26 @@ class HomePage extends StatelessWidget {
               subtitle: '${data.health.service}: ${data.health.status}',
               icon: Icons.cloud_done,
             ),
+            if (data.latestRunDetail != null)
+              _CrawlStatusCard(detail: data.latestRunDetail!, api: api,),
+            if (data.crawlHealth != null && data.latestRunDetail == null)
+              InfoCard(
+                title: '自动抓取',
+                subtitle: '${data.crawlHealth!.totalRuns} 次运行, 最新: ${data.crawlHealth!.latestStatus}',
+                icon: Icons.smart_toy,
+              ),
             InfoCard(
               title: '今日行情摘要',
               subtitle: data.summary.summaryText,
               icon: Icons.summarize,
             ),
             _FreshnessCard(summary: data.summary, prices: data.prices),
+            if (data.latestRunDetail != null) ...[
+              const SizedBox(height: 8),
+              Text('自动抓取快捷入口', style: Theme.of(context).textTheme.titleLarge),
+              const SizedBox(height: 8),
+              _CrawlQuickLinks(api: api),
+            ],
             const SizedBox(height: 8),
             Text('今日 KPI', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 8),
@@ -1816,3 +1841,389 @@ String categoryLabel(String category) => switch (category) {
   'scaffold' => '脚手架',
   _ => category,
 };
+
+// ---------------------------------------------------------------------------
+// Crawl Status Card (homepage)
+// ---------------------------------------------------------------------------
+
+class _CrawlStatusCard extends StatelessWidget {
+  const _CrawlStatusCard({required this.detail, required this.api});
+  final CrawlRunDetail detail;
+  final ApiClient api;
+
+  Color _statusColor(String status) => switch (status) {
+    'success' => Colors.green,
+    'partial_success' => Colors.orange,
+    'failed' => Colors.red,
+    'running' => Colors.blue,
+    _ => Colors.grey,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final run = detail.run;
+    final color = _statusColor(run.status);
+    final sources = detail.sources;
+    final blocked = sources.where((s) => s.status == 'blocked').length;
+    final failed = sources.where((s) => s.status == 'failed').length;
+    return Card(
+      color: color.withValues(alpha: 0.1),
+      child: InkWell(
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => CrawlRunDetailPage(detail: detail),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.smart_toy, color: color),
+                  const SizedBox(width: 8),
+                  Text('最新自动抓取', style: Theme.of(context).textTheme.titleMedium),
+                  const Spacer(),
+                  _StatusChip(status: run.status),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text('计划: ${run.runType}  ·  ${run.totalSources} 源  ·  新增 ${run.totalSaved} 条'),
+              if (blocked > 0 || failed > 0)
+                Text(
+                  '⚠ blocked $blocked  ·  failed $failed',
+                  style: TextStyle(color: Colors.red.shade700),
+                ),
+              Text(
+                '${fmtDateTime(run.startedAt)}  →  ${fmtDateTime(run.finishedAt)}',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CrawlQuickLinks extends StatelessWidget {
+  const _CrawlQuickLinks({required this.api});
+  final ApiClient api;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    spacing: 8,
+    runSpacing: 8,
+    children: [
+      ActionChip(
+        avatar: const Icon(Icons.smart_toy, size: 18),
+        label: const Text('抓取状态'),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => AutoCrawlDashboardPage(api: api)),
+        ),
+      ),
+      ActionChip(
+        avatar: const Icon(Icons.error_outline, size: 18),
+        label: const Text('失败源'),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => CrawlFailuresPage(api: api)),
+        ),
+      ),
+      ActionChip(
+        avatar: const Icon(Icons.history, size: 18),
+        label: const Text('运行历史'),
+        onPressed: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => CrawlRunHistoryPage(api: api)),
+        ),
+      ),
+    ],
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Auto Crawl Dashboard Page
+// ---------------------------------------------------------------------------
+
+class AutoCrawlDashboardPage extends StatelessWidget {
+  const AutoCrawlDashboardPage({super.key, required this.api});
+  final ApiClient api;
+
+  @override
+  Widget build(BuildContext context) => LoadState<CrawlRunDetail>(
+    loader: () => api.crawlOrchestratorLatest(),
+    builder: (context, detail, refresh) => CrawlRunDetailPage(
+      detail: detail,
+      onRefresh: refresh,
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Crawl Run Detail Page
+// ---------------------------------------------------------------------------
+
+class CrawlRunDetailPage extends StatelessWidget {
+  const CrawlRunDetailPage({super.key, required this.detail, this.onRefresh});
+  final CrawlRunDetail detail;
+  final Future<void> Function()? onRefresh;
+
+  Color _sourceColor(String status) => switch (status) {
+    'success' => Colors.green,
+    'no_match' => Colors.grey.shade400,
+    'blocked' => Colors.grey,
+    'failed' => Colors.red,
+    'skipped' => Colors.grey.shade300,
+    _ => Colors.blue,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final run = detail.run;
+    final body = RefreshIndicator(
+      onRefresh: onRefresh ?? (() async {}),
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text('运行 #${run.id}', style: Theme.of(context).textTheme.titleLarge),
+                      const Spacer(),
+                      _StatusChip(status: run.status),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  _DetailRow('计划', run.runType),
+                  _DetailRow('开始', fmtDateTime(run.startedAt)),
+                  _DetailRow('结束', fmtDateTime(run.finishedAt)),
+                  _DetailRow('数据源', '${run.totalSources}'),
+                  _DetailRow('新增', '${run.totalSaved}'),
+                  _DetailRow('附件', '${run.totalAttachments}'),
+                  _DetailRow('AI抽取', '${run.totalAiExtracted}'),
+                  _DetailRow('待复核', '${run.totalReviewTasks}'),
+                  if (run.notificationStatus != null) _DetailRow('通知', run.notificationStatus!),
+                  if (run.errorMessage != null && run.errorMessage!.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: Text(
+                        '错误: ${run.errorMessage}',
+                        style: TextStyle(color: Colors.red.shade700, fontSize: 12),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text('数据源详情', style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 8),
+          ...detail.sources.map(
+            (s) => Card(
+              color: _sourceColor(s.status).withValues(alpha: 0.08),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(child: Text(s.sourceName, style: const TextStyle(fontWeight: FontWeight.w600))),
+                        _StatusChip(status: s.status, mini: true),
+                      ],
+                    ),
+                    if (s.province != null || s.city != null)
+                      Text('${s.province ?? ''} ${s.city ?? ''}'.trim(), style: Theme.of(context).textTheme.bodySmall),
+                    Text('找到 ${s.totalFound} · 保存 ${s.totalSaved}'),
+                    if (s.blockedReason != null)
+                      Text('原因: ${s.blockedReason}', style: TextStyle(color: Colors.red.shade700, fontSize: 12)),
+                    if (s.errorMessage != null && s.errorMessage!.isNotEmpty)
+                      Text(s.errorMessage!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (onRefresh != null) return body;
+    return Scaffold(appBar: AppBar(title: Text('抓取 #${run.id}')), body: body);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Crawl Failures Page
+// ---------------------------------------------------------------------------
+
+class CrawlFailuresPage extends StatelessWidget {
+  const CrawlFailuresPage({super.key, required this.api});
+  final ApiClient api;
+
+  @override
+  Widget build(BuildContext context) => LoadState<List<CrawlRunSource>>(
+    loader: () => api.crawlOrchestratorFailures(),
+    isEmpty: (data) => data.isEmpty,
+    empty: '暂无失败源',
+    builder: (context, sources, refresh) => RefreshIndicator(
+      onRefresh: refresh,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: sources.map(
+          (s) => Card(
+            color: Colors.grey.shade100,
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(child: Text(s.sourceName, style: const TextStyle(fontWeight: FontWeight.w600))),
+                      _StatusChip(status: s.status, mini: true),
+                    ],
+                  ),
+                  if (s.province != null || s.city != null)
+                    Text('${s.province ?? ''} ${s.city ?? ''}'.trim()),
+                  if (s.blockedReason != null)
+                    Text('屏蔽原因: ${s.blockedReason}', style: TextStyle(color: Colors.red.shade700)),
+                  if (s.errorMessage != null && s.errorMessage!.isNotEmpty)
+                    Text(s.errorMessage!, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 11)),
+                ],
+              ),
+            ),
+          ),
+        ).toList(),
+      ),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Crawl Run History Page
+// ---------------------------------------------------------------------------
+
+class CrawlRunHistoryPage extends StatelessWidget {
+  const CrawlRunHistoryPage({super.key, required this.api});
+  final ApiClient api;
+
+  Color _statusColor(String status) => switch (status) {
+    'success' => Colors.green,
+    'partial_success' => Colors.orange,
+    'failed' => Colors.red,
+    _ => Colors.grey,
+  };
+
+  @override
+  Widget build(BuildContext context) => LoadState<PageResult<CrawlRun>>(
+    loader: () => api.crawlOrchestratorRuns(),
+    isEmpty: (data) => data.items.isEmpty,
+    empty: '暂无运行历史',
+    builder: (context, page, refresh) => RefreshIndicator(
+      onRefresh: refresh,
+      child: ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          PageSummary(page: page),
+          ...page.items.map(
+            (run) => Card(
+              color: _statusColor(run.status).withValues(alpha: 0.06),
+              child: InkWell(
+                onTap: () async {
+                  try {
+                    final detail = await api.crawlOrchestratorRunDetail(run.id);
+                    if (context.mounted) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => CrawlRunDetailPage(detail: detail)),
+                      );
+                    }
+                  } catch (_) {}
+                },
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text('#${run.id} ${run.runType}', style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const Spacer(),
+                          _StatusChip(status: run.status, mini: true),
+                        ],
+                      ),
+                      Text('${run.totalSaved} 条  ·  ${run.totalSources} 源  ·  ${fmtDateTime(run.startedAt)}'),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Shared widgets
+// ---------------------------------------------------------------------------
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status, this.mini = false});
+  final String status;
+  final bool mini;
+
+  Color _bgColor() => switch (status) {
+    'success' => Colors.green,
+    'partial_success' => Colors.orange,
+    'failed' => Colors.red,
+    'running' => Colors.blue,
+    'blocked' => Colors.grey,
+    'no_match' => Colors.grey.shade300,
+    _ => Colors.grey.shade300,
+  };
+
+  String _label() => switch (status) {
+    'success' => '成功',
+    'partial_success' => '部分成功',
+    'failed' => '失败',
+    'running' => '运行中',
+    'blocked' => '已屏蔽',
+    'no_match' => '无匹配',
+    'skipped' => '已跳过',
+    _ => status,
+  };
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: EdgeInsets.symmetric(horizontal: mini ? 6 : 8, vertical: mini ? 2 : 4),
+    decoration: BoxDecoration(color: _bgColor(), borderRadius: BorderRadius.circular(8)),
+    child: Text(_label(), style: TextStyle(color: Colors.white, fontSize: mini ? 10 : 12, fontWeight: FontWeight.w600)),
+  );
+}
+
+class _DetailRow extends StatelessWidget {
+  const _DetailRow(this.label, this.value);
+  final String label;
+  final String value;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 2),
+    child: Row(
+      children: [
+        SizedBox(width: 80, child: Text(label, style: Theme.of(context).textTheme.bodySmall)),
+        Expanded(child: Text(value)),
+      ],
+    ),
+  );
+}

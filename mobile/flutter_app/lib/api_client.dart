@@ -194,4 +194,48 @@ class ApiClient {
       (e) => e.value != null && e.value.toString().isNotEmpty,
     ),
   );
+
+  // ---- Crawl orchestrator ----
+
+  Future<CrawlOrchestratorHealth> crawlOrchestratorHealth() async =>
+      CrawlOrchestratorHealth.fromJson(
+        (await dio.get('/api/crawl-orchestrator/health')).data
+            as Map<String, dynamic>,
+      );
+
+  Future<List<CrawlRunSource>> crawlOrchestratorFailures({int limit = 30}) async {
+    final data =
+        (await dio.get('/api/crawl-orchestrator/failures', queryParameters: {'limit': limit})).data
+            as List;
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map(CrawlRunSource.fromJson)
+        .toList();
+  }
+
+  Future<PageResult<CrawlRun>> crawlOrchestratorRuns({
+    int page = 1,
+    int pageSize = 20,
+  }) async {
+    final res = await dio.get(
+      '/api/crawl-orchestrator/runs',
+      queryParameters: _clean({'page': page, 'page_size': pageSize}),
+    );
+    return PageResult.fromJson(
+      res.data as Map<String, dynamic>,
+      CrawlRun.fromJson,
+    );
+  }
+
+  Future<CrawlRunDetail> crawlOrchestratorRunDetail(int id) async =>
+      CrawlRunDetail.fromJson(
+        (await dio.get('/api/crawl-orchestrator/runs/$id')).data
+            as Map<String, dynamic>,
+      );
+
+  Future<CrawlRunDetail> crawlOrchestratorLatest() async =>
+      CrawlRunDetail.fromJson(
+        (await dio.get('/api/crawl-orchestrator/latest')).data
+            as Map<String, dynamic>,
+      );
 }
