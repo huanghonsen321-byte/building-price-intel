@@ -419,7 +419,7 @@ def _run_bid_source_config(
     if docs:
         _mark_source_success(source, len(docs))
     else:
-        source.parser_status = BlockedReason.NO_KEYWORD_HITS.value if is_fallback else BlockedReason.PARSER_NO_MATCH.value
+        source.parser_status = BlockedReason.NO_KEYWORD_HITS.value
         source.last_blocked_reason = None
     return docs
 
