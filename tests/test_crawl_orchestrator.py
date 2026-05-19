@@ -21,14 +21,16 @@ def test_plan_daily_selects_enabled_parser_ready_sources() -> None:
 
 
 def test_plan_guangdong_only_selects_guangdong_sources() -> None:
-    config = PlanConfig(plan="guangdong", max_sources=5, max_keywords=5)
+    config = PlanConfig(plan="guangdong", max_sources=5, max_keywords=8)
     sources, keywords = plan_guangdong(config)
     assert len(sources) >= 1
     for s in sources:
         assert s.province == "广东", f"{s.source_name} province={s.province}"
     assert "脚手架" in keywords
     assert "盘扣式脚手架" in keywords
-    assert "盘扣" not in keywords
+    assert "盘扣" in keywords  # discovery fallback, not core
+    assert "钢管" in keywords  # discovery fallback restores real Guangdong hits
+    assert keywords.index("盘扣式脚手架") < keywords.index("钢管")
 
 
 def test_plan_national_selects_national_bid_sources() -> None:

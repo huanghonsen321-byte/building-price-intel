@@ -416,6 +416,14 @@ def _run_bid_source_config(
         _mark_source_transport_error(source, str(exc))
         errors.append(f"{source.name}: {BlockedReason.TRANSPORT_ERROR.value}: {exc}")
         return []
+    if parser_name == "GuangdongPublicResourceTradingCrawler" and docs:
+        from app.crawlers.guangdong_keyword_strategy import should_include_result
+
+        docs = [
+            doc for doc in docs
+            if should_include_result(keyword, doc.title, doc.text_content or "")
+        ]
+
     if docs:
         _mark_source_success(source, len(docs))
     else:
