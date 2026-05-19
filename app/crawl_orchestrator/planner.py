@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.crawl_orchestrator.schemas import PlanConfig, SourcePlan
+from app.crawlers.guangdong_keyword_strategy import get_guangdong_plan_keywords
 from app.source_library.registry import get_sources, load_source_library
 from app.source_library.schemas import SourceQuery
 
@@ -12,8 +13,9 @@ DEFAULT_DAILY_KEYWORDS = [
 ]
 
 GUANGDONG_KEYWORDS = [
-    "脚手架", "盘扣", "钢管", "钢管扣件租赁",
-    "周转材料租赁", "模板脚手架",
+    "脚手架", "盘扣式脚手架", "扣件式脚手架",
+    "钢管脚手架", "模板脚手架", "钢管扣件租赁",
+    "周转材料租赁", "附着式升降脚手架",
 ]
 
 NATIONAL_KEYWORDS = [
@@ -86,7 +88,7 @@ def plan_guangdong(config: PlanConfig) -> tuple[list[SourcePlan], list[str]]:
             requires_browser=src.requires_browser,
         ))
 
-    keywords = GUANGDONG_KEYWORDS[:config.max_keywords]
+    keywords = get_guangdong_plan_keywords(config.max_keywords)
     return sources, keywords
 
 
