@@ -345,3 +345,125 @@ double _asDouble(Object? value, {double fallback = 0}) => value is num
 double? _asNullableDouble(Object? value) =>
     value is num ? value.toDouble() : double.tryParse(value?.toString() ?? '');
 DateTime? _asDate(Object? value) => DateTime.tryParse(value?.toString() ?? '');
+
+// ---------------------------------------------------------------------------
+// Crawl orchestrator models
+// ---------------------------------------------------------------------------
+
+class CrawlOrchestratorHealth {
+  const CrawlOrchestratorHealth({
+    required this.totalRuns,
+    required this.latestRun,
+    required this.latestStatus,
+  });
+  final int totalRuns;
+  final int? latestRun;
+  final String latestStatus;
+  factory CrawlOrchestratorHealth.fromJson(Map<String, dynamic> json) =>
+      CrawlOrchestratorHealth(
+        totalRuns: _asInt(json['total_runs']),
+        latestRun: _asNullableInt(json['latest_run']),
+        latestStatus: json['latest_status']?.toString() ?? 'no_runs',
+      );
+}
+
+class CrawlRun {
+  const CrawlRun({
+    required this.id,
+    required this.runType,
+    required this.status,
+    required this.startedAt,
+    required this.finishedAt,
+    required this.totalSources,
+    required this.totalFound,
+    required this.totalSaved,
+    required this.totalAttachments,
+    required this.totalAiExtracted,
+    required this.totalReviewTasks,
+    required this.notificationStatus,
+    required this.errorMessage,
+    required this.createdAt,
+  });
+  final int id;
+  final String runType;
+  final String status;
+  final DateTime? startedAt;
+  final DateTime? finishedAt;
+  final int totalSources;
+  final int totalFound;
+  final int totalSaved;
+  final int totalAttachments;
+  final int totalAiExtracted;
+  final int totalReviewTasks;
+  final String? notificationStatus;
+  final String? errorMessage;
+  final DateTime? createdAt;
+  factory CrawlRun.fromJson(Map<String, dynamic> json) => CrawlRun(
+    id: _asInt(json['id']),
+    runType: json['run_type']?.toString() ?? '',
+    status: json['status']?.toString() ?? '',
+    startedAt: _asDate(json['started_at']),
+    finishedAt: _asDate(json['finished_at']),
+    totalSources: _asInt(json['total_sources']),
+    totalFound: _asInt(json['total_found']),
+    totalSaved: _asInt(json['total_saved']),
+    totalAttachments: _asInt(json['total_attachments']),
+    totalAiExtracted: _asInt(json['total_ai_extracted']),
+    totalReviewTasks: _asInt(json['total_review_tasks']),
+    notificationStatus: _asString(json['notification_status']),
+    errorMessage: _asString(json['error_message']),
+    createdAt: _asDate(json['created_at']),
+  );
+}
+
+class CrawlRunSource {
+  const CrawlRunSource({
+    required this.id,
+    required this.sourceName,
+    required this.province,
+    required this.city,
+    required this.status,
+    required this.blockedReason,
+    required this.totalFound,
+    required this.totalSaved,
+    required this.errorMessage,
+    required this.durationMs,
+  });
+  final int id;
+  final String sourceName;
+  final String? province;
+  final String? city;
+  final String status;
+  final String? blockedReason;
+  final int totalFound;
+  final int totalSaved;
+  final String? errorMessage;
+  final int? durationMs;
+  factory CrawlRunSource.fromJson(Map<String, dynamic> json) =>
+      CrawlRunSource(
+        id: _asInt(json['id']),
+        sourceName: json['source_name']?.toString() ?? '',
+        province: _asString(json['province']),
+        city: _asString(json['city']),
+        status: json['status']?.toString() ?? '',
+        blockedReason: _asString(json['blocked_reason']),
+        totalFound: _asInt(json['total_found']),
+        totalSaved: _asInt(json['total_saved']),
+        errorMessage: _asString(json['error_message']),
+        durationMs: _asNullableInt(json['duration_ms']),
+      );
+}
+
+class CrawlRunDetail {
+  const CrawlRunDetail({required this.run, required this.sources});
+  final CrawlRun run;
+  final List<CrawlRunSource> sources;
+  factory CrawlRunDetail.fromJson(Map<String, dynamic> json) =>
+      CrawlRunDetail(
+        run: CrawlRun.fromJson(json['run'] as Map<String, dynamic>),
+        sources: ((json['sources'] as List?) ?? const [])
+            .whereType<Map<String, dynamic>>()
+            .map(CrawlRunSource.fromJson)
+            .toList(),
+      );
+}
