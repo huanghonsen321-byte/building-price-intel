@@ -2,247 +2,1126 @@
   "version": "1.0.0",
   "description": "全国脚手架/建材/招投标数据源资料库",
   "updated_at": "2026-05-18",
-
   "national_sources": [
     {
-      "name": "全国公共资源交易平台", "url": "https://www.ggzy.gov.cn",
-      "domain": "ggzy.gov.cn", "source_level": "national", "source_type": "bid",
+      "name": "全国公共资源交易平台",
+      "url": "https://www.ggzy.gov.cn",
+      "domain": "ggzy.gov.cn",
+      "source_level": "national",
+      "source_type": "bid",
       "acquisition_method": "html_list_page",
-      "keywords": ["脚手架","盘扣","钢管","周转材料"],
+      "keywords": [
+        "脚手架",
+        "盘扣",
+        "钢管",
+        "周转材料"
+      ],
       "parser_name": "NationalPublicResourcePlatformCrawler",
-      "enabled": true, "parser_status": "parser_ready",
-      "requires_browser": false, "requires_manual_review": false,
+      "enabled": true,
+      "parser_status": "parser_ready",
+      "requires_browser": false,
+      "requires_manual_review": false,
       "rate_limit_seconds": 3,
-      "province": "全国", "city": null,
-      "tags": ["national","aggregate","homepage"],
+      "province": "全国",
+      "city": null,
+      "tags": [
+        "national",
+        "aggregate",
+        "homepage"
+      ],
       "notes": "HTTPS 可访问，首页公告列表含行政区划代码映射省份"
     },
     {
-      "name": "全国公共资源交易平台数据服务", "url": "https://data.ggzy.gov.cn/",
-      "domain": "data.ggzy.gov.cn", "source_level": "national", "source_type": "bid",
+      "name": "全国公共资源交易平台数据服务",
+      "url": "https://data.ggzy.gov.cn/",
+      "domain": "data.ggzy.gov.cn",
+      "source_level": "national",
+      "source_type": "bid",
       "acquisition_method": "browser_discovery",
-      "keywords": ["脚手架","盘扣","钢管"],
+      "keywords": [
+        "脚手架",
+        "盘扣",
+        "钢管"
+      ],
       "parser_name": null,
-      "enabled": false, "parser_status": "not_started",
-      "requires_browser": true, "requires_manual_review": false,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "requires_manual_review": false,
       "rate_limit_seconds": 5,
-      "province": "全国", "city": null,
-      "tags": ["national","data-service"],
+      "province": "全国",
+      "city": null,
+      "tags": [
+        "national",
+        "data-service"
+      ],
       "notes": "中标成交查询/统计页面，需 browser discovery"
     },
     {
-      "name": "中国政府采购网", "url": "http://search.ccgp.gov.cn/bxsearch",
-      "domain": "ccgp.gov.cn", "source_level": "national", "source_type": "bid",
+      "name": "中国政府采购网",
+      "url": "http://search.ccgp.gov.cn/bxsearch",
+      "domain": "ccgp.gov.cn",
+      "source_level": "national",
+      "source_type": "bid",
       "acquisition_method": "official_search_page",
-      "keywords": ["脚手架","盘扣","钢管","周转材料"],
+      "keywords": [
+        "脚手架",
+        "盘扣",
+        "钢管",
+        "周转材料"
+      ],
       "parser_name": "ChinaGovernmentProcurementCrawler",
-      "enabled": true, "parser_status": "parser_ready",
-      "requires_browser": false, "requires_manual_review": false,
+      "enabled": true,
+      "parser_status": "parser_ready",
+      "requires_browser": false,
+      "requires_manual_review": false,
       "rate_limit_seconds": 3,
-      "province": "全国", "city": null,
-      "tags": ["national","procurement"],
+      "province": "全国",
+      "city": null,
+      "tags": [
+        "national",
+        "procurement"
+      ],
       "notes": "GET 搜索页 bxsearch，参数 kw"
     },
     {
-      "name": "中央政府采购网", "url": "https://www.zycg.gov.cn",
-      "domain": "zycg.gov.cn", "source_level": "national", "source_type": "bid",
+      "name": "中央政府采购网",
+      "url": "https://www.zycg.gov.cn",
+      "domain": "zycg.gov.cn",
+      "source_level": "national",
+      "source_type": "bid",
       "acquisition_method": "browser_discovery",
-      "keywords": ["脚手架","盘扣","钢管"],
+      "keywords": [
+        "脚手架",
+        "盘扣",
+        "钢管"
+      ],
       "parser_name": "CentralGovernmentProcurementCrawler",
-      "enabled": true, "parser_status": "parser_ready",
-      "requires_browser": false, "requires_manual_review": false,
+      "enabled": true,
+      "parser_status": "parser_ready",
+      "requires_browser": false,
+      "requires_manual_review": false,
       "rate_limit_seconds": 3,
-      "province": "全国", "city": null,
-      "tags": ["national","central-procurement"],
+      "province": "全国",
+      "city": null,
+      "tags": [
+        "national",
+        "central-procurement"
+      ],
       "notes": "FreeCMS SPA，静态解析有限，需 browser discovery 增强"
     },
     {
-      "name": "中国招标投标公共服务平台", "url": "https://ctbpsp.com",
-      "domain": "ctbpsp.com", "source_level": "national", "source_type": "bid",
+      "name": "中国招标投标公共服务平台",
+      "url": "https://ctbpsp.com",
+      "domain": "ctbpsp.com",
+      "source_level": "national",
+      "source_type": "bid",
       "acquisition_method": "browser_discovery",
-      "keywords": ["脚手架","盘扣","钢管","周转材料"],
+      "keywords": [
+        "脚手架",
+        "盘扣",
+        "钢管",
+        "周转材料"
+      ],
       "parser_name": "ChinaBiddingPublicServiceCrawler",
-      "enabled": true, "parser_status": "parser_ready",
-      "requires_browser": false, "requires_manual_review": false,
+      "enabled": true,
+      "parser_status": "parser_ready",
+      "requires_browser": false,
+      "requires_manual_review": false,
       "rate_limit_seconds": 3,
-      "province": "全国", "city": null,
-      "tags": ["national","bidding"],
+      "province": "全国",
+      "city": null,
+      "tags": [
+        "national",
+        "bidding"
+      ],
       "notes": "Vue SPA 全国招标公告公示搜索引擎，静态提取有限"
     },
     {
-      "name": "中国招标投标网", "url": "https://www.cebpubservice.com",
-      "domain": "cebpubservice.com", "source_level": "national", "source_type": "bid",
+      "name": "中国招标投标网",
+      "url": "https://www.cebpubservice.com",
+      "domain": "cebpubservice.com",
+      "source_level": "national",
+      "source_type": "bid",
       "acquisition_method": "browser_discovery",
-      "keywords": ["脚手架","盘扣","钢管"],
+      "keywords": [
+        "脚手架",
+        "盘扣",
+        "钢管"
+      ],
       "parser_name": null,
-      "enabled": false, "parser_status": "blocked",
-      "requires_browser": false, "requires_manual_review": true,
+      "enabled": false,
+      "parser_status": "blocked",
+      "requires_browser": false,
+      "requires_manual_review": true,
       "rate_limit_seconds": 5,
-      "province": "全国", "city": null,
-      "tags": ["national","bidding","blocked"],
+      "province": "全国",
+      "city": null,
+      "tags": [
+        "national",
+        "bidding",
+        "blocked"
+      ],
       "last_blocked_reason": "transport_error",
       "notes": "阿里云 CDN 502 Bad Gateway，改用 ctbpsp.com"
     },
     {
-      "name": "央企采购公开公告平台", "url": "https://www.cecgp.com",
-      "domain": "cecgp.com", "source_level": "national", "source_type": "bid",
+      "name": "央企采购公开公告平台",
+      "url": "https://www.cecgp.com",
+      "domain": "cecgp.com",
+      "source_level": "national",
+      "source_type": "bid",
       "acquisition_method": "browser_discovery",
-      "keywords": ["脚手架","盘扣","钢管","钢材"],
+      "keywords": [
+        "脚手架",
+        "盘扣",
+        "钢管",
+        "钢材"
+      ],
       "parser_name": null,
-      "enabled": false, "parser_status": "not_started",
-      "requires_browser": true, "requires_manual_review": false,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "requires_manual_review": false,
       "rate_limit_seconds": 5,
-      "province": "全国", "city": null,
-      "tags": ["national","central-enterprise"],
+      "province": "全国",
+      "city": null,
+      "tags": [
+        "national",
+        "central-enterprise"
+      ],
       "notes": "央企采购公开公告，待确认页面结构后接入"
     }
   ],
-
   "guangdong_provincial_sources": [
     {
-      "name": "广东省公共资源交易平台", "url": "https://ygp.gdzwfw.gov.cn/ggzy-portal/",
-      "domain": "ygp.gdzwfw.gov.cn", "source_level": "province", "source_type": "bid",
+      "name": "广东省公共资源交易平台",
+      "url": "https://ygp.gdzwfw.gov.cn/ggzy-portal/",
+      "domain": "ygp.gdzwfw.gov.cn",
+      "source_level": "province",
+      "source_type": "bid",
       "acquisition_method": "public_api",
-      "keywords": ["脚手架","盘扣","钢管","周转材料"],
+      "keywords": [
+        "脚手架",
+        "盘扣",
+        "钢管",
+        "周转材料"
+      ],
       "parser_name": "GuangdongPublicResourceTradingCrawler",
-      "enabled": true, "parser_status": "parser_ready",
-      "requires_browser": false, "requires_manual_review": false,
+      "enabled": true,
+      "parser_status": "parser_ready",
+      "requires_browser": false,
+      "requires_manual_review": false,
       "rate_limit_seconds": 3,
-      "province": "广东", "city": null,
+      "province": "广东",
+      "city": null,
       "public_api_found": true,
-      "tags": ["guangdong","province","public-api"],
-      "notes": "API: ygp.gdzwfw.gov.cn/ggzy-portal/search/v2/items，POST JSON"
+      "tags": [
+        "guangdong",
+        "province",
+        "public-api"
+      ],
+      "notes": "API: ygp.gdzwfw.gov.cn/ggzy-portal/search/v2/items，POST JSON。工程招投标源，脚手架/周转材料命中有限（脚手架=27，盘扣式脚手架=18），不适合单独使用\"盘扣\"（320条多为\"盘岭\"地名假阳性）。建议作为低频辅助源（周更），不作为材料采购主力源。关键词策略参见 docs/guangdong_keyword_coverage.md。",
+      "reliability_score": 0.5
     },
     {
-      "name": "广东政府采购智慧云平台", "url": "https://gdgpo.czt.gd.gov.cn",
-      "domain": "gdgpo.czt.gd.gov.cn", "source_level": "province", "source_type": "bid",
+      "name": "广东政府采购智慧云平台",
+      "url": "https://gdgpo.czt.gd.gov.cn",
+      "domain": "gdgpo.czt.gd.gov.cn",
+      "source_level": "province",
+      "source_type": "bid",
       "acquisition_method": "html_list_page",
-      "keywords": ["脚手架","盘扣","钢管"],
+      "keywords": [
+        "脚手架",
+        "盘扣",
+        "钢管"
+      ],
       "parser_name": "GuangdongGovernmentProcurementSmartCloudCrawler",
-      "enabled": true, "parser_status": "parser_ready",
-      "requires_browser": false, "requires_manual_review": false,
+      "enabled": true,
+      "parser_status": "parser_ready",
+      "requires_browser": false,
+      "requires_manual_review": false,
       "rate_limit_seconds": 3,
-      "province": "广东", "city": null,
-      "tags": ["guangdong","province","procurement"],
+      "province": "广东",
+      "city": null,
+      "tags": [
+        "guangdong",
+        "province",
+        "procurement"
+      ],
       "notes": "HTML 首页解析"
     },
     {
-      "name": "广东省招标投标监管网", "url": "http://zbtb.gd.gov.cn",
-      "domain": "zbtb.gd.gov.cn", "source_level": "province", "source_type": "bid",
+      "name": "广东省招标投标监管网",
+      "url": "http://zbtb.gd.gov.cn",
+      "domain": "zbtb.gd.gov.cn",
+      "source_level": "province",
+      "source_type": "bid",
       "acquisition_method": "browser_discovery",
-      "keywords": ["脚手架","盘扣","钢管"],
+      "keywords": [
+        "脚手架",
+        "盘扣",
+        "钢管"
+      ],
       "parser_name": null,
-      "enabled": false, "parser_status": "not_started",
-      "requires_browser": true, "requires_manual_review": false,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "requires_manual_review": false,
       "rate_limit_seconds": 5,
-      "province": "广东", "city": null,
-      "tags": ["guangdong","province","bidding-supervision"],
+      "province": "广东",
+      "city": null,
+      "tags": [
+        "guangdong",
+        "province",
+        "bidding-supervision"
+      ],
       "notes": "待确认公开页面结构后接入"
     },
     {
-      "name": "广东省住房和城乡建设厅", "url": "http://zfcxjst.gd.gov.cn",
-      "domain": "zfcxjst.gd.gov.cn", "source_level": "province", "source_type": "mixed",
+      "name": "广东省住房和城乡建设厅",
+      "url": "http://zfcxjst.gd.gov.cn",
+      "domain": "zfcxjst.gd.gov.cn",
+      "source_level": "province",
+      "source_type": "mixed",
       "acquisition_method": "browser_discovery",
-      "keywords": ["脚手架","模板","钢管","造价"],
+      "keywords": [
+        "脚手架",
+        "模板",
+        "钢管",
+        "造价"
+      ],
       "parser_name": null,
-      "enabled": false, "parser_status": "not_started",
-      "requires_browser": true, "requires_manual_review": false,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "requires_manual_review": false,
       "rate_limit_seconds": 5,
-      "province": "广东", "city": null,
-      "tags": ["guangdong","province","construction"],
+      "province": "广东",
+      "city": null,
+      "tags": [
+        "guangdong",
+        "province",
+        "construction"
+      ],
       "notes": "建设工程造价信息，待确认页面结构"
     },
     {
-      "name": "广东省建设工程造价", "url": "http://gdzj.gd.gov.cn",
-      "domain": "gdzj.gd.gov.cn", "source_level": "province", "source_type": "price",
+      "name": "广东省建设工程造价",
+      "url": "http://gdzj.gd.gov.cn",
+      "domain": "gdzj.gd.gov.cn",
+      "source_level": "province",
+      "source_type": "price",
       "acquisition_method": "browser_discovery",
-      "keywords": ["脚手架","模板","钢管","造价","定额"],
+      "keywords": [
+        "脚手架",
+        "模板",
+        "钢管",
+        "造价",
+        "定额"
+      ],
       "parser_name": null,
-      "enabled": false, "parser_status": "not_started",
-      "requires_browser": true, "requires_manual_review": false,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "requires_manual_review": false,
       "rate_limit_seconds": 5,
-      "province": "广东", "city": null,
-      "tags": ["guangdong","province","cost"],
+      "province": "广东",
+      "city": null,
+      "tags": [
+        "guangdong",
+        "province",
+        "cost"
+      ],
       "notes": "造价信息 / 定额发布，待确认页面结构"
     }
   ],
-
   "guangdong_city_sources": [
-    {"name":"广州公共资源交易平台","url":"https://www.gzggzy.cn","domain":"gzggzy.cn","province":"广东","city":"广州","parser_name":"GuangzhouPublicResourceTradingCrawler","enabled":true,"parser_status":"parser_ready","requires_browser":false,"tags":["guangdong","city"],"notes":"现有 parser"},
-    {"name":"深圳公共资源交易平台","url":"https://www.szggzy.com","domain":"szggzy.com","province":"广东","city":"深圳","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"佛山公共资源交易平台","url":"http://www.foshan.gov.cn","domain":"foshan.gov.cn","province":"广东","city":"佛山","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"东莞公共资源交易平台","url":"http://www.dg.gov.cn","domain":"dg.gov.cn","province":"广东","city":"东莞","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"中山公共资源交易平台","url":"http://www.zs.gov.cn","domain":"zs.gov.cn","province":"广东","city":"中山","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"珠海公共资源交易平台","url":"http://www.zhuhai.gov.cn","domain":"zhuhai.gov.cn","province":"广东","city":"珠海","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"惠州公共资源交易平台","url":"http://www.huizhou.gov.cn","domain":"huizhou.gov.cn","province":"广东","city":"惠州","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"江门公共资源交易平台","url":"http://www.jiangmen.gov.cn","domain":"jiangmen.gov.cn","province":"广东","city":"江门","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"汕头公共资源交易平台","url":"http://www.shantou.gov.cn","domain":"shantou.gov.cn","province":"广东","city":"汕头","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"肇庆公共资源交易平台","url":"http://www.zhaoqing.gov.cn","domain":"zhaoqing.gov.cn","province":"广东","city":"肇庆","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"河源公共资源交易平台","url":"http://www.heyuan.gov.cn","domain":"heyuan.gov.cn","province":"广东","city":"河源","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"清远公共资源交易平台","url":"http://www.qingyuan.gov.cn","domain":"qingyuan.gov.cn","province":"广东","city":"清远","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"阳江公共资源交易平台","url":"http://www.yangjiang.gov.cn","domain":"yangjiang.gov.cn","province":"广东","city":"阳江","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"茂名公共资源交易平台","url":"http://www.maoming.gov.cn","domain":"maoming.gov.cn","province":"广东","city":"茂名","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"湛江公共资源交易平台","url":"http://www.zhanjiang.gov.cn","domain":"zhanjiang.gov.cn","province":"广东","city":"湛江","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"韶关公共资源交易平台","url":"http://www.sg.gov.cn","domain":"sg.gov.cn","province":"广东","city":"韶关","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"梅州公共资源交易平台","url":"http://www.meizhou.gov.cn","domain":"meizhou.gov.cn","province":"广东","city":"梅州","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"揭阳公共资源交易平台","url":"http://www.jieyang.gov.cn","domain":"jieyang.gov.cn","province":"广东","city":"揭阳","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"潮州公共资源交易平台","url":"http://www.chaozhou.gov.cn","domain":"chaozhou.gov.cn","province":"广东","city":"潮州","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"汕尾公共资源交易平台","url":"http://www.shanwei.gov.cn","domain":"shanwei.gov.cn","province":"广东","city":"汕尾","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"},
-    {"name":"云浮公共资源交易平台","url":"http://www.yunfu.gov.cn","domain":"yunfu.gov.cn","province":"广东","city":"云浮","parser_name":null,"enabled":false,"parser_status":"not_started","requires_browser":true,"tags":["guangdong","city"],"notes":"待接入"}
+    {
+      "name": "广州公共资源交易平台",
+      "url": "https://www.gzggzy.cn",
+      "domain": "gzggzy.cn",
+      "province": "广东",
+      "city": "广州",
+      "parser_name": "GuangzhouPublicResourceTradingCrawler",
+      "enabled": true,
+      "parser_status": "parser_ready",
+      "requires_browser": false,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "现有 parser"
+    },
+    {
+      "name": "深圳公共资源交易平台",
+      "url": "https://www.szggzy.com",
+      "domain": "szggzy.com",
+      "province": "广东",
+      "city": "深圳",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "佛山公共资源交易平台",
+      "url": "http://www.foshan.gov.cn",
+      "domain": "foshan.gov.cn",
+      "province": "广东",
+      "city": "佛山",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "东莞公共资源交易平台",
+      "url": "http://www.dg.gov.cn",
+      "domain": "dg.gov.cn",
+      "province": "广东",
+      "city": "东莞",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "中山公共资源交易平台",
+      "url": "http://www.zs.gov.cn",
+      "domain": "zs.gov.cn",
+      "province": "广东",
+      "city": "中山",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "珠海公共资源交易平台",
+      "url": "http://www.zhuhai.gov.cn",
+      "domain": "zhuhai.gov.cn",
+      "province": "广东",
+      "city": "珠海",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "惠州公共资源交易平台",
+      "url": "http://www.huizhou.gov.cn",
+      "domain": "huizhou.gov.cn",
+      "province": "广东",
+      "city": "惠州",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "江门公共资源交易平台",
+      "url": "http://www.jiangmen.gov.cn",
+      "domain": "jiangmen.gov.cn",
+      "province": "广东",
+      "city": "江门",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "汕头公共资源交易平台",
+      "url": "http://www.shantou.gov.cn",
+      "domain": "shantou.gov.cn",
+      "province": "广东",
+      "city": "汕头",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "肇庆公共资源交易平台",
+      "url": "http://www.zhaoqing.gov.cn",
+      "domain": "zhaoqing.gov.cn",
+      "province": "广东",
+      "city": "肇庆",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "河源公共资源交易平台",
+      "url": "http://www.heyuan.gov.cn",
+      "domain": "heyuan.gov.cn",
+      "province": "广东",
+      "city": "河源",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "清远公共资源交易平台",
+      "url": "http://www.qingyuan.gov.cn",
+      "domain": "qingyuan.gov.cn",
+      "province": "广东",
+      "city": "清远",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "阳江公共资源交易平台",
+      "url": "http://www.yangjiang.gov.cn",
+      "domain": "yangjiang.gov.cn",
+      "province": "广东",
+      "city": "阳江",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "茂名公共资源交易平台",
+      "url": "http://www.maoming.gov.cn",
+      "domain": "maoming.gov.cn",
+      "province": "广东",
+      "city": "茂名",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "湛江公共资源交易平台",
+      "url": "http://www.zhanjiang.gov.cn",
+      "domain": "zhanjiang.gov.cn",
+      "province": "广东",
+      "city": "湛江",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "韶关公共资源交易平台",
+      "url": "http://www.sg.gov.cn",
+      "domain": "sg.gov.cn",
+      "province": "广东",
+      "city": "韶关",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "梅州公共资源交易平台",
+      "url": "http://www.meizhou.gov.cn",
+      "domain": "meizhou.gov.cn",
+      "province": "广东",
+      "city": "梅州",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "揭阳公共资源交易平台",
+      "url": "http://www.jieyang.gov.cn",
+      "domain": "jieyang.gov.cn",
+      "province": "广东",
+      "city": "揭阳",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "潮州公共资源交易平台",
+      "url": "http://www.chaozhou.gov.cn",
+      "domain": "chaozhou.gov.cn",
+      "province": "广东",
+      "city": "潮州",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "汕尾公共资源交易平台",
+      "url": "http://www.shanwei.gov.cn",
+      "domain": "shanwei.gov.cn",
+      "province": "广东",
+      "city": "汕尾",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    },
+    {
+      "name": "云浮公共资源交易平台",
+      "url": "http://www.yunfu.gov.cn",
+      "domain": "yunfu.gov.cn",
+      "province": "广东",
+      "city": "云浮",
+      "parser_name": null,
+      "enabled": false,
+      "parser_status": "not_started",
+      "requires_browser": true,
+      "tags": [
+        "guangdong",
+        "city"
+      ],
+      "notes": "待接入"
+    }
   ],
-
   "national_province_sources": [
-    {"province":"北京","city":"北京","url":"https://ggzyfw.beijing.gov.cn","domain":"ggzyfw.beijing.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"天津","city":"天津","url":"http://ggzy.zwfwb.tj.gov.cn","domain":"ggzy.zwfwb.tj.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"河北","city":"石家庄","url":"http://www.hebpr.gov.cn","domain":"hebpr.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"山西","city":"太原","url":"http://prec.sxzwfw.gov.cn","domain":"sxzwfw.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"内蒙古","city":"呼和浩特","url":"http://ggzyjy.nmg.gov.cn","domain":"ggzyjy.nmg.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"辽宁","city":"沈阳","url":"http://www.lnggzy.gov.cn","domain":"lnggzy.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"吉林","city":"长春","url":"http://www.ggzyzx.jl.gov.cn","domain":"ggzyzx.jl.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"黑龙江","city":"哈尔滨","url":"http://www.hljggzyjyw.gov.cn","domain":"hljggzyjyw.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"上海","city":"上海","url":"http://www.shggzy.com","domain":"shggzy.com","enabled":false,"tags":["province"]},
-    {"province":"江苏","city":"南京","url":"http://jsggzy.jszwfw.gov.cn","domain":"jsggzy.jszwfw.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"浙江","city":"杭州","url":"http://zjpubservice.zjzwfw.gov.cn","domain":"zjpubservice.zjzwfw.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"安徽","city":"合肥","url":"http://ggzy.ah.gov.cn","domain":"ggzy.ah.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"福建","city":"福州","url":"http://ggzyfw.fj.gov.cn","domain":"ggzyfw.fj.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"江西","city":"南昌","url":"http://www.jxsggzy.cn","domain":"jxsggzy.cn","enabled":false,"tags":["province"]},
-    {"province":"山东","city":"济南","url":"http://ggzyjy.shandong.gov.cn","domain":"ggzyjy.shandong.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"河南","city":"郑州","url":"http://www.hnggzy.net","domain":"hnggzy.net","enabled":false,"tags":["province"]},
-    {"province":"湖北","city":"武汉","url":"http://www.hbbidcloud.cn","domain":"hbbidcloud.cn","enabled":false,"tags":["province"]},
-    {"province":"湖南","city":"长沙","url":"http://ggzy.hunan.gov.cn","domain":"ggzy.hunan.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"广西","city":"南宁","url":"http://gxggzy.gxzf.gov.cn","domain":"gxggzy.gxzf.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"海南","city":"海口","url":"http://zw.hainan.gov.cn/ggzy","domain":"zw.hainan.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"重庆","city":"重庆","url":"http://www.cqggzy.com","domain":"cqggzy.com","enabled":false,"tags":["province"]},
-    {"province":"四川","city":"成都","url":"http://ggzyjy.sc.gov.cn","domain":"ggzyjy.sc.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"贵州","city":"贵阳","url":"http://ggzy.guizhou.gov.cn","domain":"ggzy.guizhou.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"云南","city":"昆明","url":"http://www.ynggzy.com","domain":"ynggzy.com","enabled":false,"tags":["province"]},
-    {"province":"西藏","city":"拉萨","url":"http://ggzy.xizang.gov.cn","domain":"ggzy.xizang.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"陕西","city":"西安","url":"http://www.sxggzyjy.cn","domain":"sxggzyjy.cn","enabled":false,"tags":["province"]},
-    {"province":"甘肃","city":"兰州","url":"http://ggzyjy.gansu.gov.cn","domain":"ggzyjy.gansu.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"青海","city":"西宁","url":"http://www.qhggzyjy.gov.cn","domain":"qhggzyjy.gov.cn","enabled":false,"tags":["province"]},
-    {"province":"宁夏","city":"银川","url":"http://www.nxggzyjy.org","domain":"nxggzyjy.org","enabled":false,"tags":["province"]},
-    {"province":"新疆","city":"乌鲁木齐","url":"http://ggzy.xinjiang.gov.cn","domain":"ggzy.xinjiang.gov.cn","enabled":false,"tags":["province"]}
+    {
+      "province": "北京",
+      "city": "北京",
+      "url": "https://ggzyfw.beijing.gov.cn",
+      "domain": "ggzyfw.beijing.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "天津",
+      "city": "天津",
+      "url": "http://ggzy.zwfwb.tj.gov.cn",
+      "domain": "ggzy.zwfwb.tj.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "河北",
+      "city": "石家庄",
+      "url": "http://www.hebpr.gov.cn",
+      "domain": "hebpr.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "山西",
+      "city": "太原",
+      "url": "http://prec.sxzwfw.gov.cn",
+      "domain": "sxzwfw.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "内蒙古",
+      "city": "呼和浩特",
+      "url": "http://ggzyjy.nmg.gov.cn",
+      "domain": "ggzyjy.nmg.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "辽宁",
+      "city": "沈阳",
+      "url": "http://www.lnggzy.gov.cn",
+      "domain": "lnggzy.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "吉林",
+      "city": "长春",
+      "url": "http://www.ggzyzx.jl.gov.cn",
+      "domain": "ggzyzx.jl.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "黑龙江",
+      "city": "哈尔滨",
+      "url": "http://www.hljggzyjyw.gov.cn",
+      "domain": "hljggzyjyw.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "上海",
+      "city": "上海",
+      "url": "http://www.shggzy.com",
+      "domain": "shggzy.com",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "江苏",
+      "city": "南京",
+      "url": "http://jsggzy.jszwfw.gov.cn",
+      "domain": "jsggzy.jszwfw.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "浙江",
+      "city": "杭州",
+      "url": "http://zjpubservice.zjzwfw.gov.cn",
+      "domain": "zjpubservice.zjzwfw.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "安徽",
+      "city": "合肥",
+      "url": "http://ggzy.ah.gov.cn",
+      "domain": "ggzy.ah.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "福建",
+      "city": "福州",
+      "url": "http://ggzyfw.fj.gov.cn",
+      "domain": "ggzyfw.fj.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "江西",
+      "city": "南昌",
+      "url": "http://www.jxsggzy.cn",
+      "domain": "jxsggzy.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "山东",
+      "city": "济南",
+      "url": "http://ggzyjy.shandong.gov.cn",
+      "domain": "ggzyjy.shandong.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "河南",
+      "city": "郑州",
+      "url": "http://www.hnggzy.net",
+      "domain": "hnggzy.net",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "湖北",
+      "city": "武汉",
+      "url": "http://www.hbbidcloud.cn",
+      "domain": "hbbidcloud.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "湖南",
+      "city": "长沙",
+      "url": "http://ggzy.hunan.gov.cn",
+      "domain": "ggzy.hunan.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "广西",
+      "city": "南宁",
+      "url": "http://gxggzy.gxzf.gov.cn",
+      "domain": "gxggzy.gxzf.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "海南",
+      "city": "海口",
+      "url": "http://zw.hainan.gov.cn/ggzy",
+      "domain": "zw.hainan.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "重庆",
+      "city": "重庆",
+      "url": "http://www.cqggzy.com",
+      "domain": "cqggzy.com",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "四川",
+      "city": "成都",
+      "url": "http://ggzyjy.sc.gov.cn",
+      "domain": "ggzyjy.sc.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "贵州",
+      "city": "贵阳",
+      "url": "http://ggzy.guizhou.gov.cn",
+      "domain": "ggzy.guizhou.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "云南",
+      "city": "昆明",
+      "url": "http://www.ynggzy.com",
+      "domain": "ynggzy.com",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "西藏",
+      "city": "拉萨",
+      "url": "http://ggzy.xizang.gov.cn",
+      "domain": "ggzy.xizang.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "陕西",
+      "city": "西安",
+      "url": "http://www.sxggzyjy.cn",
+      "domain": "sxggzyjy.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "甘肃",
+      "city": "兰州",
+      "url": "http://ggzyjy.gansu.gov.cn",
+      "domain": "ggzyjy.gansu.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "青海",
+      "city": "西宁",
+      "url": "http://www.qhggzyjy.gov.cn",
+      "domain": "qhggzyjy.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "宁夏",
+      "city": "银川",
+      "url": "http://www.nxggzyjy.org",
+      "domain": "nxggzyjy.org",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    },
+    {
+      "province": "新疆",
+      "city": "乌鲁木齐",
+      "url": "http://ggzy.xinjiang.gov.cn",
+      "domain": "ggzy.xinjiang.gov.cn",
+      "enabled": false,
+      "tags": [
+        "province"
+      ]
+    }
   ],
-
   "price_sources": [
-    {"name":"生意社公开价格页","url":"https://www.100ppi.com/price/","domain":"100ppi.com","source_type":"price","acquisition_method":"html_list_page","category":"mixed","keywords":["螺纹钢","废钢","盘扣"],"enabled":true,"parser_status":"parser_ready","notes":"BusinessSocietyPriceCrawler"},
-    {"name":"钢材之家公开行情","url":"https://www.gangc.com","domain":"gangc.com","source_type":"price","acquisition_method":"browser_discovery","category":"steel","enabled":false,"parser_status":"not_started","notes":"待确认页面结构"},
-    {"name":"再生资源网公开行情","url":"https://www.51scrap.com","domain":"51scrap.com","source_type":"price","acquisition_method":"browser_discovery","category":"scrap","enabled":false,"parser_status":"not_started","notes":"待确认页面结构"},
-    {"name":"我的钢铁网公开行情","url":"https://www.mysteel.com","domain":"mysteel.com","source_type":"price","acquisition_method":"browser_discovery","category":"steel","enabled":false,"parser_status":"not_started","notes":"待确认公开页面"},
-    {"name":"西本新干线","url":"http://www.96369.net","domain":"96369.net","source_type":"price","acquisition_method":"browser_discovery","category":"steel","enabled":false,"parser_status":"not_started","notes":"待确认公开页面"},
-    {"name":"卓创资讯公开行情","url":"https://www.sci99.com","domain":"sci99.com","source_type":"price","acquisition_method":"browser_discovery","category":"mixed","enabled":false,"parser_status":"not_started","notes":"待确认公开页面"},
-    {"name":"百川盈孚公开行情","url":"https://www.baiinfo.com","domain":"baiinfo.com","source_type":"price","acquisition_method":"browser_discovery","category":"mixed","enabled":false,"parser_status":"not_started","notes":"待确认公开页面"},
-    {"name":"富宝废钢公开行情","url":"https://www.f139.com","domain":"f139.com","source_type":"price","acquisition_method":"browser_discovery","category":"scrap","enabled":false,"parser_status":"not_started","notes":"待确认公开页面"},
-    {"name":"Mysteel废钢指数","url":"https://index.mysteel.com","domain":"mysteel.com","source_type":"price","acquisition_method":"browser_discovery","category":"scrap","enabled":false,"parser_status":"not_started","notes":"待确认公开页面"},
-    {"name":"广材网公开信息","url":"https://www.gldjc.com","domain":"gldjc.com","source_type":"price","acquisition_method":"browser_discovery","category":"scaffold","enabled":false,"parser_status":"not_started","notes":"建筑材料信息价"}
+    {
+      "name": "生意社公开价格页",
+      "url": "https://www.100ppi.com/price/",
+      "domain": "100ppi.com",
+      "source_type": "price",
+      "acquisition_method": "html_list_page",
+      "category": "mixed",
+      "keywords": [
+        "螺纹钢",
+        "废钢",
+        "盘扣"
+      ],
+      "enabled": true,
+      "parser_status": "parser_ready",
+      "notes": "BusinessSocietyPriceCrawler"
+    },
+    {
+      "name": "钢材之家公开行情",
+      "url": "https://www.gangc.com",
+      "domain": "gangc.com",
+      "source_type": "price",
+      "acquisition_method": "browser_discovery",
+      "category": "steel",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "待确认页面结构"
+    },
+    {
+      "name": "再生资源网公开行情",
+      "url": "https://www.51scrap.com",
+      "domain": "51scrap.com",
+      "source_type": "price",
+      "acquisition_method": "browser_discovery",
+      "category": "scrap",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "待确认页面结构"
+    },
+    {
+      "name": "我的钢铁网公开行情",
+      "url": "https://www.mysteel.com",
+      "domain": "mysteel.com",
+      "source_type": "price",
+      "acquisition_method": "browser_discovery",
+      "category": "steel",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "待确认公开页面"
+    },
+    {
+      "name": "西本新干线",
+      "url": "http://www.96369.net",
+      "domain": "96369.net",
+      "source_type": "price",
+      "acquisition_method": "browser_discovery",
+      "category": "steel",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "待确认公开页面"
+    },
+    {
+      "name": "卓创资讯公开行情",
+      "url": "https://www.sci99.com",
+      "domain": "sci99.com",
+      "source_type": "price",
+      "acquisition_method": "browser_discovery",
+      "category": "mixed",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "待确认公开页面"
+    },
+    {
+      "name": "百川盈孚公开行情",
+      "url": "https://www.baiinfo.com",
+      "domain": "baiinfo.com",
+      "source_type": "price",
+      "acquisition_method": "browser_discovery",
+      "category": "mixed",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "待确认公开页面"
+    },
+    {
+      "name": "富宝废钢公开行情",
+      "url": "https://www.f139.com",
+      "domain": "f139.com",
+      "source_type": "price",
+      "acquisition_method": "browser_discovery",
+      "category": "scrap",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "待确认公开页面"
+    },
+    {
+      "name": "Mysteel废钢指数",
+      "url": "https://index.mysteel.com",
+      "domain": "mysteel.com",
+      "source_type": "price",
+      "acquisition_method": "browser_discovery",
+      "category": "scrap",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "待确认公开页面"
+    },
+    {
+      "name": "广材网公开信息",
+      "url": "https://www.gldjc.com",
+      "domain": "gldjc.com",
+      "source_type": "price",
+      "acquisition_method": "browser_discovery",
+      "category": "scaffold",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "建筑材料信息价"
+    }
   ],
-
   "manual_import_sources": [
-    {"name":"手动导入","source_level":"manual","source_type":"mixed","acquisition_method":"manual_import","enabled":true,"parser_status":"not_started","notes":"CSV/Excel/PDF/Word 上传导入"},
-    {"name":"供应商报价导入","source_level":"enterprise","source_type":"price","acquisition_method":"authorized_api","enabled":false,"parser_status":"not_started","notes":"预留供应商 API"},
-    {"name":"租赁站报价导入","source_level":"enterprise","source_type":"price","acquisition_method":"authorized_api","enabled":false,"parser_status":"not_started","notes":"预留租赁站报价"}
+    {
+      "name": "手动导入",
+      "source_level": "manual",
+      "source_type": "mixed",
+      "acquisition_method": "manual_import",
+      "enabled": true,
+      "parser_status": "not_started",
+      "notes": "CSV/Excel/PDF/Word 上传导入"
+    },
+    {
+      "name": "供应商报价导入",
+      "source_level": "enterprise",
+      "source_type": "price",
+      "acquisition_method": "authorized_api",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "预留供应商 API"
+    },
+    {
+      "name": "租赁站报价导入",
+      "source_level": "enterprise",
+      "source_type": "price",
+      "acquisition_method": "authorized_api",
+      "enabled": false,
+      "parser_status": "not_started",
+      "notes": "预留租赁站报价"
+    }
   ],
-
   "acquisition_methods": {
     "national_aggregate_search": "国家级聚合搜索",
     "official_search_page": "官方搜索页",
@@ -254,7 +1133,6 @@
     "manual_import": "手动导入",
     "authorized_api": "授权 API"
   },
-
   "parser_statuses": {
     "not_started": "未开始",
     "fixture_ready": "Fixture 已就绪",
