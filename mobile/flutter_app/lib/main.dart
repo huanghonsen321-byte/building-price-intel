@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import 'api_client.dart';
 import 'models.dart';
+import 'feature/dashboard/ingest_status_page.dart';
 
 void main() => runApp(const BuildingPriceApp());
 
@@ -62,6 +63,7 @@ class _AppShellState extends State<AppShell> {
       _Destination('复核', Icons.fact_check, ReviewPage(api: api)),
       _Destination('区域', Icons.map, RegionDistributionPage(api: api)),
       _Destination('抓取状态', Icons.smart_toy, AutoCrawlDashboardPage(api: api)),
+      _Destination('接入状态', Icons.monitor_heart, IngestStatusPage(api: api)),
       _Destination('失败源', Icons.error_outline, CrawlFailuresPage(api: api)),
       _Destination('运行历史', Icons.history, CrawlRunHistoryPage(api: api)),
     ];
