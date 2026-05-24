@@ -3,6 +3,15 @@ import 'package:flutter/foundation.dart';
 
 import 'models.dart';
 
+class ApiException implements Exception {
+  const ApiException(this.message, {this.statusCode});
+  final String message;
+  final int? statusCode;
+
+  @override
+  String toString() => statusCode == null ? message : '[${statusCode}] $message';
+}
+
 class ApiClient {
   ApiClient({String? baseUrl}) : baseUrl = baseUrl ?? defaultBaseUrl {
     dio = Dio(
@@ -50,8 +59,9 @@ class ApiClient {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final res = await dio.get(
+    return _getPaged(
       '/api/prices',
+      PriceDaily.fromJson,
       queryParameters: _clean({
         'category': category,
         'region': region,
@@ -60,10 +70,6 @@ class ApiClient {
         'page': page,
         'page_size': pageSize,
       }),
-    );
-    return PageResult.fromJson(
-      res.data as Map<String, dynamic>,
-      PriceDaily.fromJson,
     );
   }
 
@@ -98,8 +104,9 @@ class ApiClient {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final res = await dio.get(
+    return _getPaged(
       '/api/scaffold/bids',
+      ScaffoldBidCase.fromJson,
       queryParameters: _clean({
         'keyword': keyword,
         'province': province,
@@ -110,10 +117,6 @@ class ApiClient {
         'page': page,
         'page_size': pageSize,
       }),
-    );
-    return PageResult.fromJson(
-      res.data as Map<String, dynamic>,
-      ScaffoldBidCase.fromJson,
     );
   }
 
@@ -136,8 +139,9 @@ class ApiClient {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final res = await dio.get(
+    return _getPaged(
       '/api/scaffold/prices/reference',
+      ScaffoldPriceReference.fromJson,
       queryParameters: _clean({
         'region': region,
         'scaffold_type': scaffoldType,
@@ -146,10 +150,6 @@ class ApiClient {
         'page': page,
         'page_size': pageSize,
       }),
-    );
-    return PageResult.fromJson(
-      res.data as Map<String, dynamic>,
-      ScaffoldPriceReference.fromJson,
     );
   }
 
@@ -189,11 +189,49 @@ class ApiClient {
     return ScaffoldQuoteResult.fromJson(res.data as Map<String, dynamic>);
   }
 
+  Future<Map<String, dynamic>> _getJsonMap(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    try {
+      final res = await dio.get(path, queryParameters: queryParameters);
+      return res.data as Map<String, dynamic>;
+    } on DioException catch (e) {
+      throw _mapError(e);
+    }
+  }
+
+  Future<PageResult<T>> _getPaged<T>(
+    String path,
+    T Function(Map<String, dynamic>) fromJson, {
+    Map<String, dynamic>? queryParameters,
+  }) async {
+    final map = await _getJsonMap(path, queryParameters: queryParameters);
+    return PageResult.fromJson(map, fromJson);
+  }
+
+  ApiException _mapError(DioException error) {
+    final code = error.response?.statusCode;
+    final data = error.response?.data;
+    if (data is Map<String, dynamic>) {
+      final msg = data['detail'] ?? data['message'] ?? data['error'];
+      if (msg != null && msg.toString().isNotEmpty) {
+        return ApiException(msg.toString(), statusCode: code);
+      }
+    }
+    return ApiException(error.message ?? '网络请求失败', statusCode: code);
+  }
+
   Map<String, dynamic> _clean(Map<String, dynamic> input) => Map.fromEntries(
     input.entries.where(
       (e) => e.value != null && e.value.toString().isNotEmpty,
     ),
   );
+
+  Future<IngestStatusOverview> ingestStatusOverview() async =>
+      IngestStatusOverview.fromJson(
+        await _getJsonMap('/api/ingest/status'),
+      );
 
   // ---- Crawl orchestrator ----
 
@@ -217,13 +255,10 @@ class ApiClient {
     int page = 1,
     int pageSize = 20,
   }) async {
-    final res = await dio.get(
+    return _getPaged(
       '/api/crawl-orchestrator/runs',
-      queryParameters: _clean({'page': page, 'page_size': pageSize}),
-    );
-    return PageResult.fromJson(
-      res.data as Map<String, dynamic>,
       CrawlRun.fromJson,
+      queryParameters: _clean({'page': page, 'page_size': pageSize}),
     );
   }
 

@@ -27,6 +27,38 @@ class PageResult<T> {
   }
 }
 
+
+class IngestStatusOverview {
+  const IngestStatusOverview({
+    required this.windowHours,
+    required this.successCount,
+    required this.failureCount,
+    required this.lastError,
+    required this.updatedAt,
+  });
+
+  final int windowHours;
+  final int successCount;
+  final int failureCount;
+  final String? lastError;
+  final DateTime? updatedAt;
+
+  double get successRate {
+    final total = successCount + failureCount;
+    if (total <= 0) return 1;
+    return successCount / total;
+  }
+
+  factory IngestStatusOverview.fromJson(Map<String, dynamic> json) =>
+      IngestStatusOverview(
+        windowHours: _asInt(json['window_hours'], fallback: 24),
+        successCount: _asInt(json['success_count']),
+        failureCount: _asInt(json['failure_count']),
+        lastError: _asString(json['last_error']),
+        updatedAt: _asDate(json['updated_at']),
+      );
+}
+
 class HealthStatus {
   const HealthStatus({required this.status, required this.service});
   final String status;
