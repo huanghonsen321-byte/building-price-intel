@@ -370,7 +370,7 @@ def attachment_text_for_raw_doc(db: Session, raw_document_id: int) -> str:
 def enhanced_extract_from_attachment_text(text: str, title: str, publish_date) -> dict:
     """Extract structured fields from attachment text using enhanced regex patterns.
 
-    This complements _simple_extract in crawl_service.py with attachment-specific
+    This complements the main extraction pipeline with attachment-specific
     patterns for PDF/DOCX/XLSX content.
     """
     import re as _re

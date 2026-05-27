@@ -1,6 +1,6 @@
 from datetime import date, datetime
 
-from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import Date, DateTime, String, Text, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -24,43 +24,3 @@ class BidRawDocument(Base):
 
     bid_case: Mapped["ScaffoldBidCase | None"] = relationship(back_populates="raw_document")
     attachments: Mapped[list["BidAttachment"]] = relationship(back_populates="raw_document", cascade="all, delete-orphan")
-
-
-class CrawlSource(Base):
-    __tablename__ = "crawl_sources"
-    __table_args__ = (UniqueConstraint("name", name="uq_crawl_sources_name"),)
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    name: Mapped[str] = mapped_column(String(128), index=True)
-    base_url: Mapped[str] = mapped_column(Text)
-    source_type: Mapped[str] = mapped_column(String(64), default="mock_public_bid", server_default="mock_public_bid")
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
-    rate_limit_seconds: Mapped[int] = mapped_column(Integer, default=3, server_default="3")
-    reliability_score: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")
-    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    last_blocked_reason: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
-    parser_status: Mapped[str] = mapped_column(String(64), default="unknown", server_default="unknown", index=True)
-    requires_browser: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
-    requires_manual_review: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
-    public_page_reachable: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
-    public_api_found: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-
-    tasks: Mapped[list["CrawlTask"]] = relationship(back_populates="source")
-
-
-class CrawlTask(Base):
-    __tablename__ = "crawl_tasks"
-
-    id: Mapped[int] = mapped_column(primary_key=True, index=True)
-    source_id: Mapped[int | None] = mapped_column(ForeignKey("crawl_sources.id"), nullable=True, index=True)
-    keyword: Mapped[str] = mapped_column(String(128), index=True)
-    status: Mapped[str] = mapped_column(String(32), default="pending", server_default="pending", index=True)
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    total_found: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    total_saved: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-
-    source: Mapped[CrawlSource | None] = relationship(back_populates="tasks")

@@ -47,13 +47,7 @@
 
 ## 与采集流水线集成
 
-`run_public_crawl` 保存 `bid_raw_documents` 后自动：
-
-1. 发现附件 → 写入 `bid_attachments`
-2. 下载附件 → 提取文本
-3. 附件文本合并到 AI extraction 输入
-4. 增强抽取中标金额、面积、租期、单价等字段
-5. 低置信度自动进入 `review_tasks`
+当前爬虫采集流水线已移除；附件解析模块保留为独立能力，供后续重新实现的采集流程调用。
 
 ## API
 
@@ -77,13 +71,6 @@ POST /api/attachments/parse-pending      触发批量解析 pending 附件
 ## 运行
 
 ```bash
-# 小批量 dry-run
-./scripts/run_national_public_crawl_v4.sh --dry-run --max-keywords 3 --max-sources 3
-
-# 小批量运行（不发送企业微信）
-./scripts/run_national_public_crawl_v4.sh --run --no-wecom --max-keywords 3 --max-sources 3
-
-# 手动触发附件解析
 curl -X POST http://localhost:8012/api/attachments/parse-pending?limit=50
 ```
 

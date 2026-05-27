@@ -70,27 +70,9 @@ def test_expected_app_backend_routes_exist() -> None:
         ("GET", "/api/scaffold/prices/reference"),
         ("POST", "/api/scaffold/bids/extract-pending"),
         ("POST", "/api/quote/scaffold/calculate"),
-        ("POST", "/api/crawl/run"),
-        ("GET", "/api/crawl/tasks"),
-        ("GET", "/api/crawl/dashboard"),
-        ("POST", "/api/crawl-orchestrator/run"),
-        ("GET", "/api/crawl-orchestrator/runs"),
-        ("GET", "/api/crawl-orchestrator/runs/{run_id}"),
-        ("GET", "/api/crawl-orchestrator/latest"),
-        ("GET", "/api/crawl-orchestrator/failures"),
-        ("GET", "/api/crawl-orchestrator/health"),
-        ("GET", "/api/source-library"),
-        ("GET", "/api/source-library/{source_id}"),
-        ("GET", "/api/source-library/stats"),
-        ("POST", "/api/source-library/validate"),
-        ("POST", "/api/source-library/import"),
-        ("POST", "/api/source-library/{source_id}/enable"),
-        ("POST", "/api/source-library/{source_id}/disable"),
         ("GET", "/api/attachments"),
         ("GET", "/api/attachments/{attachment_id}"),
         ("POST", "/api/attachments/parse-pending"),
-        ("GET", "/api/managed-browser/runs"),
-        ("GET", "/api/managed-browser/runs/{run_id}"),
         ("POST", "/api/notifications/daily-briefing/send"),
         ("GET", "/api/notifications/logs"),
     }
@@ -98,75 +80,6 @@ def test_expected_app_backend_routes_exist() -> None:
     assert missing == []
     assert ("GET", "/api/pricing/regional-prices") not in routes
 
-
-def test_crawl_orchestrator_latest_returns_flutter_required_fields(client) -> None:
-    from app.core.database import SessionLocal
-    from app.models.crawl_orchestrator import CrawlRun
-
-    with SessionLocal() as db:
-        db.add(CrawlRun(run_type="contract_test", status="success", total_sources=0))
-        db.commit()
-
-    response = client.get("/api/crawl-orchestrator/latest")
-    assert response.status_code == 200
-    payload = response.json()
-    assert set(payload) >= {"run", "sources"}
-    assert isinstance(payload["sources"], list)
-    if payload["run"]:
-        assert set(payload["run"]) >= {
-            "id",
-            "run_type",
-            "status",
-            "started_at",
-            "finished_at",
-            "total_sources",
-            "total_found",
-            "total_saved",
-            "total_attachments",
-            "total_ai_extracted",
-            "total_review_tasks",
-            "notification_status",
-            "error_message",
-            "created_at",
-        }
-
-
-def test_source_library_stats_returns_flutter_required_fields(client) -> None:
-    response = client.get("/api/source-library/stats")
-    assert response.status_code == 200
-    payload = response.json()
-    assert set(payload) >= {
-        "total_sources",
-        "enabled_sources",
-        "parser_ready_sources",
-        "blocked_sources",
-        "national_sources",
-        "guangdong_sources",
-        "province_source_count",
-        "city_source_count",
-        "price_source_count",
-        "attachment_source_count",
-        "manual_import_sources",
-        "authorized_api_sources",
-        "by_acquisition_method",
-        "by_parser_status",
-    }
-
-
-def test_crawl_dashboard_returns_flutter_required_fields(client) -> None:
-    response = client.get("/api/crawl/dashboard")
-    assert response.status_code == 200
-    payload = response.json()
-    assert set(payload) >= {
-        "blocked_source_count",
-        "blocked_reason_distribution",
-        "available_source_count",
-        "today_successful_source_count",
-        "guangdong_success_rate",
-        "national_success_rate",
-        "source_library_stats",
-    }
-    assert set(payload["source_library_stats"]) >= {"by_acquisition_method", "by_parser_status"}
 
 
 def test_prices_today_summary_returns_flutter_required_fields(client) -> None:
@@ -193,16 +106,6 @@ def test_regional_prices_endpoint_absence_matches_flutter_contract() -> None:
     assert "/api/pricing/regional-prices" not in flutter_paths
 
 
-def test_source_library_pagination_total_counts_filtered_collection(client) -> None:
-    first = client.get("/api/source-library?limit=1&offset=0")
-    second = client.get("/api/source-library?limit=1&offset=1")
-    assert first.status_code == 200
-    assert second.status_code == 200
-    first_payload = first.json()
-    second_payload = second.json()
-    assert first_payload["total"] > len(first_payload["items"])
-    assert second_payload["total"] == first_payload["total"]
-
 
 def test_optional_operation_endpoints_return_app_parseable_shapes(client) -> None:
     notifications = client.get("/api/notifications/logs?page=1&page_size=20")
@@ -211,9 +114,3 @@ def test_optional_operation_endpoints_return_app_parseable_shapes(client) -> Non
     assert set(notification_payload) >= {"items", "total", "page", "page_size"}
     assert isinstance(notification_payload["items"], list)
     assert isinstance(notification_payload["total"], int)
-
-    managed = client.get("/api/managed-browser/runs?page=1&page_size=20")
-    assert managed.status_code == 200
-    managed_payload = managed.json()
-    assert set(managed_payload) >= {"items", "total", "page", "page_size"}
-    assert isinstance(managed_payload["items"], list)

@@ -4,10 +4,16 @@ from uuid import uuid4
 
 from app.core.database import SessionLocal
 from app.models.bid import ScaffoldBidCase, ScaffoldPriceReference
+from app.seed.seed_data import reset_mock_data, seed_bid_cases
+
+
+def _ensure_reference_data() -> None:
+    reset_mock_data()
+    seed_bid_cases()
 
 
 def test_quote_area_unit(client) -> None:
-    client.post("/api/crawl/run", json={"keyword": "脚手架"})
+    _ensure_reference_data()
     response = client.post("/api/quote/scaffold/calculate", json={"scaffold_type": "盘扣", "area_m2": 1000})
     assert response.status_code == 200
     data = response.json()
@@ -17,7 +23,7 @@ def test_quote_area_unit(client) -> None:
 
 
 def test_quote_missing_required_fields_returns_null_estimate(client) -> None:
-    client.post("/api/crawl/run", json={"keyword": "脚手架"})
+    _ensure_reference_data()
     response = client.post("/api/quote/scaffold/calculate", json={"scaffold_type": "盘扣"})
     assert response.status_code == 200
     data = response.json()
@@ -27,7 +33,7 @@ def test_quote_missing_required_fields_returns_null_estimate(client) -> None:
 
 
 def test_quote_area_unit_with_advanced_cost_breakdown(client) -> None:
-    client.post("/api/crawl/run", json={"keyword": "脚手架"})
+    _ensure_reference_data()
     response = client.post(
         "/api/quote/scaffold/calculate",
         json={

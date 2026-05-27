@@ -1,7 +1,0 @@
-# Optional crawler framework dependencies.
-# Install with: pip install -r requirements-crawlers.txt
-scrapy>=2.15,<3.0
-crawlee>=1.7,<2.0
-# pyspider 0.3.10 installs but its CLI is not Python 3.14 compatible because of reserved keyword `async`.
-# Use a Python 3.6/3.7 container for pyspider Web UI, or Crawlab with a compatible image.
-pyspider==0.3.10

@@ -241,44 +241,6 @@ def test_enhanced_extract_returns_low_confidence_without_data() -> None:
     assert result["bid_amount"] is None
 
 
-# ---------------------------------------------------------------------------
-# Integration: attachment-aware pipeline
-# ---------------------------------------------------------------------------
-
-def test_crawl_service_with_attachment_aware_pipeline() -> None:
-    from app.crawlers.real_public_sources import (
-        BusinessSocietyPriceCrawler,
-        ChinaGovernmentProcurementCrawler,
-    )
-    from app.services.crawl_service import run_public_crawl
-
-    PRICE_HTML = """<html><body>
-    <table><tr><td>2026-05-18</td><td>螺纹钢</td><td>HRB400E 20mm</td><td>北京</td><td>3560</td><td>元/吨</td></tr></table>
-    </body></html>"""
-
-    BID_HTML_WITH_ATTACHMENT = """
-    <html><body>
-    <a href="/cggg/dfgg/zbgg/202605/t20260518_003.htm">广东省广州市项目盘扣式脚手架中标公告</a>
-    <p>采购人：广州建设。中标人：广州安建。中标金额：2860000元。服务期：150天。发布时间：2026-05-18。</p>
-    <a href="/uploads/contract.pdf">采购合同</a>
-    <a href="/uploads/BOM.xlsx">工程量清单</a>
-    </body></html>
-    """
-
-    with SessionLocal() as db:
-        task = run_public_crawl(
-            db, keyword="脚手架",
-            price_html=PRICE_HTML,
-            bid_html=BID_HTML_WITH_ATTACHMENT,
-        )
-        assert task.status == "success"
-
-        # Attachment links should have been discovered (downloads will fail b/c example.com is fake)
-        attachments = list(db.query(BidAttachment).all())
-        # Some attachments should exist even if downloads fail
-        attachment_urls = {a.file_url for a in attachments}
-        assert any("contract.pdf" in u for u in attachment_urls) or any("BOM.xlsx" in u for u in attachment_urls)
-
 
 # ---------------------------------------------------------------------------
 # Mock file generators

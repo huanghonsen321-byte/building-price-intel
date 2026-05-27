@@ -189,48 +189,6 @@ class ApiClient {
     return ScaffoldQuoteResult.fromJson(res.data as Map<String, dynamic>);
   }
 
-  // ---- Optional app/backend operational APIs ----
-
-  Future<CrawlDashboardSummary> crawlDashboard() async =>
-      CrawlDashboardSummary.fromJson(
-        (await dio.get('/api/crawl/dashboard')).data as Map<String, dynamic>,
-      );
-
-  Future<SourceLibraryStats> sourceLibraryStats() async =>
-      SourceLibraryStats.fromJson(
-        (await dio.get('/api/source-library/stats')).data as Map<String, dynamic>,
-      );
-
-  Future<PageResult<SourceLibraryItem>> sourceLibrary({
-    String? province,
-    String? sourceLevel,
-    String? sourceType,
-    String? parserStatus,
-    bool? enabled,
-    int page = 1,
-    int pageSize = 20,
-  }) async {
-    final offset = (page - 1) * pageSize;
-    final res = await dio.get(
-      '/api/source-library',
-      queryParameters: _clean({
-        'province': province,
-        'source_level': sourceLevel,
-        'source_type': sourceType,
-        'parser_status': parserStatus,
-        'enabled': enabled,
-        'limit': pageSize,
-        'offset': offset,
-      }),
-    );
-    final data = Map<String, dynamic>.from(res.data as Map);
-    return PageResult.fromJson({
-      'items': data['items'] ?? const [],
-      'total': data['total'] ?? 0,
-      'page': page,
-      'page_size': pageSize,
-    }, SourceLibraryItem.fromJson);
-  }
 
   Future<PageResult<Attachment>> attachments({
     String? parseStatus,
@@ -253,28 +211,6 @@ class ApiClient {
     );
   }
 
-  Future<PageResult<ManagedBrowserRun>> managedBrowserRuns({
-    String? sourceName,
-    String? keyword,
-    String? blockedReason,
-    int page = 1,
-    int pageSize = 20,
-  }) async {
-    final res = await dio.get(
-      '/api/managed-browser/runs',
-      queryParameters: _clean({
-        'source_name': sourceName,
-        'keyword': keyword,
-        'blocked_reason': blockedReason,
-        'page': page,
-        'page_size': pageSize,
-      }),
-    );
-    return PageResult.fromJson(
-      res.data as Map<String, dynamic>,
-      ManagedBrowserRun.fromJson,
-    );
-  }
 
   Future<PageResult<NotificationLog>> notificationLogs({
     int page = 1,
@@ -299,47 +235,4 @@ class ApiClient {
     ),
   );
 
-  // ---- Crawl orchestrator ----
-
-  Future<CrawlOrchestratorHealth> crawlOrchestratorHealth() async =>
-      CrawlOrchestratorHealth.fromJson(
-        (await dio.get('/api/crawl-orchestrator/health')).data
-            as Map<String, dynamic>,
-      );
-
-  Future<List<CrawlRunSource>> crawlOrchestratorFailures({int limit = 30}) async {
-    final data =
-        (await dio.get('/api/crawl-orchestrator/failures', queryParameters: {'limit': limit})).data
-            as List;
-    return data
-        .whereType<Map<String, dynamic>>()
-        .map(CrawlRunSource.fromJson)
-        .toList();
-  }
-
-  Future<PageResult<CrawlRun>> crawlOrchestratorRuns({
-    int page = 1,
-    int pageSize = 20,
-  }) async {
-    final res = await dio.get(
-      '/api/crawl-orchestrator/runs',
-      queryParameters: _clean({'page': page, 'page_size': pageSize}),
-    );
-    return PageResult.fromJson(
-      res.data as Map<String, dynamic>,
-      CrawlRun.fromJson,
-    );
-  }
-
-  Future<CrawlRunDetail> crawlOrchestratorRunDetail(int id) async =>
-      CrawlRunDetail.fromJson(
-        (await dio.get('/api/crawl-orchestrator/runs/$id')).data
-            as Map<String, dynamic>,
-      );
-
-  Future<CrawlRunDetail> crawlOrchestratorLatest() async =>
-      CrawlRunDetail.fromJson(
-        (await dio.get('/api/crawl-orchestrator/latest')).data
-            as Map<String, dynamic>,
-      );
 }

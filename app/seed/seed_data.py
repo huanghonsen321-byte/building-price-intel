@@ -5,7 +5,7 @@ from sqlalchemy import delete, select
 
 from app.core.database import Base, SessionLocal, engine
 from app.models.bid import ScaffoldBidCase, ScaffoldPriceReference
-from app.models.crawl import BidRawDocument, CrawlSource, CrawlTask
+from app.models.crawl import BidRawDocument
 from app.models.price import PriceDaily
 from app.models.review import ReviewTask
 from app.services.price_reference_service import replace_reference_for_case
@@ -21,8 +21,6 @@ def reset_mock_data() -> None:
         db.execute(delete(ScaffoldPriceReference).where(ScaffoldPriceReference.bid_case_id.in_(mock_cases)))
         db.execute(delete(ScaffoldBidCase).where(ScaffoldBidCase.source_url.like("https://mock-seed.local/%")))
         db.execute(delete(BidRawDocument).where(BidRawDocument.source_name == MOCK_SOURCE))
-        db.execute(delete(CrawlTask).where(CrawlTask.keyword.like("seed-%")))
-        db.execute(delete(CrawlSource).where(CrawlSource.name == MOCK_SOURCE))
         db.execute(delete(PriceDaily).where(PriceDaily.source_name == MOCK_SOURCE))
         db.commit()
 
